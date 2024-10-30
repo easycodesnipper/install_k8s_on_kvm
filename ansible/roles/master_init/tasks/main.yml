@@ -1,0 +1,28 @@
+---
+- name: Pull Kubernetes images
+  command: kubeadm config images pull
+  register: pull_images
+  retries: 10
+  delay: 5
+  until: pull_images.rc == 0
+
+- name: Initialize Kubernetes master
+  command: kubeadm init --pod-network-cidr={{ k8s_cidr }} --kubernetes-version={{ k8s_version }}
+  register: kubeadm_init
+  changed_when: "'kubeadm join' in kubeadm_init.stdout"
+
+- name: Ensure .kube directory exists
+  file:
+    path: "/home/{{ ansible_user }}/.kube"
+    state: directory
+    mode: '0755'
+
+- name: Copy Kubernetes admin.conf to .kube/config
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "/home/{{ ansible_user }}/.kube/config"
+    remote_src: yes  # Indicate that the source file is on the remote machine
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+

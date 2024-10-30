@@ -1,0 +1,27 @@
+---
+- hosts: k8s_all
+  become: true
+  vars_files:
+    - vars.yml
+  roles:
+    - precheck
+    - install_docker
+    - config_containerd
+    - install_k8s
+    - reset
+
+- hosts: k8s_master
+  become: true
+  vars_files:
+    - vars.yml
+  roles:
+    - master_init
+    - install_cni
+
+- hosts: k8s_all
+  become: true
+  vars_files:
+    - vars.yml
+  roles:
+    - worker_join
+    - postcheck

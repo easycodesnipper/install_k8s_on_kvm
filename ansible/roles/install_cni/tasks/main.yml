@@ -1,0 +1,53 @@
+# - name: Install the Tigera Calico operator 
+#   become: false
+#   command: >
+#     kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/tigera-operator.yaml --validate=false
+#   register: install_opt
+#   retries: 10
+#   delay: 5
+#   until: install_opt.rc == 0
+
+# - name: Install Calico by creating the necessary custom resource
+#   become: false
+#   command: >
+#     kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v{{ calico_version }}/manifests/custom-resources.yaml --validate=false
+#   register: install_cust
+#   retries: 10
+#   delay: 5
+#   until: install_cust.rc == 0
+
+# - name: Download calicoctl binary
+#   get_url:
+#     url: "https://github.com/projectcalico/calico/releases/download/v{{ calico_version }}/calicoctl-linux-amd64"
+#     dest: /usr/local/bin/calicoctl
+#     mode: '0755'
+#     force: yes  # Force the download
+#   register: install_calicoctl
+#   retries: 10
+#   delay: 5
+#   until: install_calicoctl is not none and install_calicoctl.changed == true
+
+- name: Download Flannel YAML
+  get_url:
+    url: "https://github.com/flannel-io/flannel/releases/download/v{{ flannel_version }}/kube-flannel.yml"
+    dest: "/tmp/kube-flannel.yml"
+    force: yes
+  register: download_rc
+  retries: 10
+  delay: 5
+  until: download_rc is succeeded
+
+- name: Update Flannel network CIDR in kube-flannel.yaml
+  replace:
+    path: "/tmp/kube-flannel.yml"
+    regexp: '"Network": "(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2})"'
+    replace: '"Network": "{{ k8s_cidr }}"'
+
+- name: Apply Flannel YAML
+  become: false
+  command: kubectl apply -f /tmp/kube-flannel.yml
+
+# - name: Remove Flannel YAML
+#   file:
+#     path: "/tmp/kube-flannel.yml"
+#     state: absent

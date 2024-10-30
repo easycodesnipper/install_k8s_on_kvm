@@ -1,0 +1,40 @@
+- name: Download Kubernetes GPG key
+  get_url:
+    url: https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key
+    dest: /tmp/k8s.gpg
+    mode: '0644'
+
+- name: Convert GPG key to dearmor format
+  command: >
+    gpg --yes --dearmor -o /usr/share/keyrings/k8s.gpg /tmp/k8s.gpg
+
+- name: Remove temporary GPG key file
+  file:
+    path: /tmp/k8s.gpg
+    state: absent
+
+- name: Add Kubernetes repository
+  lineinfile:
+    path: /etc/apt/sources.list.d/kubernetes.list
+    line: "deb [arch=amd64 signed-by=/usr/share/keyrings/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"
+    create: yes
+
+- name: Update apt package index
+  apt:
+    update_cache: yes
+
+- name: Install Kubernetes components
+  apt:
+    name:
+      - kubelet={{  k8s_version  }}*
+      - kubeadm={{  k8s_version  }}*
+      - kubectl={{  k8s_version  }}*
+    state: present
+    update_cache: yes
+
+- name: Mark Kubernetes packages on hold
+  command: apt-mark hold {{ item }}
+  loop:
+    - kubelet
+    - kubeadm
+    - kubectl

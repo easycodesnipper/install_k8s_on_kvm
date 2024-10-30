@@ -1,0 +1,13 @@
+---
+- name: Get kubeadm join command
+  command: kubeadm token create --print-join-command
+  register: join_command
+  when: inventory_hostname in groups['k8s_master']
+
+- set_fact:
+    kubeadm_join_command: "{{ join_command.stdout }}"
+  when: inventory_hostname in groups['k8s_master']
+
+- name: Join worker to the master
+  command: "{{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}"
+  when: inventory_hostname in groups['k8s_workers']

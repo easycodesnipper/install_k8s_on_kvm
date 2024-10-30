@@ -1,0 +1,43 @@
+- name: Disable swap in /etc/fstab
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^\s*[^#].*swap'
+    line: '#\0'
+  ignore_errors: yes
+
+- name: Create k8s.conf kernel module file if not exist
+  file:
+    path: /etc/modules-load.d/k8s.conf
+    state: touch
+
+- name: Ensure k8s.conf exists with required kernel modules
+  lineinfile:
+    path: /etc/modules-load.d/k8s.conf
+    line: "{{ item }}"
+    state: present
+  loop:
+    - overlay
+    - br_netfilter
+
+- name: Set sysctl parameters for bridge networking
+  lineinfile:
+    path: /etc/sysctl.conf
+    line: "{{ item.key }} = {{ item.value }}"
+    state: present
+  loop:
+    - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
+    - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
+    - { key: "net.ipv4.ip_forward", value: "1" }
+
+- name: Reboot the machine
+  reboot:
+    reboot_timeout: 300  # Adjust as needed
+    test_command: whoami  # Command to check if the machine is up
+  register: reboot_result
+
+- name: Wait for the machine to become available
+  wait_for:
+    timeout: 300  # Adjust as needed
+    port: 22  # Default SSH port, change if needed
+    state: started
+  when: reboot_result is changed

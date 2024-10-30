@@ -67,9 +67,9 @@ function playbook_install_k8s() {
 
 function main() {
 
-    # provision_infra "$@"
+    provision_infra "$@"
 
-    # auto_gen_inventory "$@"
+    auto_gen_inventory "$@"
 
     playbook_install_k8s "$@"
 }

@@ -7,6 +7,12 @@ inventory_file="$work_dir/ansible/inventory.ini"
 user=${user:-ubuntu}
 k8s_pool_path=${k8s_pool_path:-/mnt/data_lvm/k8s_pool}
 source_img_location=${source_img_location:-"https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"}
+total_nodes=${total_nodes:-2} # By default, the first one will be taken as master
+boot_volume_size=${boot_volume_size:-10} # in GB
+data_volume_size=${data_volume_size:-20} # in GB
+vcpu_count=${vcpu_count:-2}
+memory_size=${memory_size:-2} # in GB
+
 
 ### Precheck the source image (download if it's a URL and update the source_img_location)
 precheck_source_image() {
@@ -52,6 +58,11 @@ function provision_infra(){
     -var="user=$user" \
     -var="k8s_pool_path=$k8s_pool_path" \
     -var="source_img_location=$source_img_location" \
+    -var="total_nodes=$total_nodes" \
+    -var="boot_volume_size=$boot_volume_size" \
+    -var="data_volume_size=$data_volume_size" \
+    -var="vcpu_count=$vcpu_count" \
+    -var="memory_size=$memory_size" \
     -auto-approve
 }
 

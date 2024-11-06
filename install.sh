@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash -ex
 
 work_dir=$(pwd)
 
@@ -6,7 +6,37 @@ work_dir=$(pwd)
 inventory_file="$work_dir/ansible/inventory.ini"
 user=${user:-ubuntu}
 k8s_pool_path=${k8s_pool_path:-/mnt/data_lvm/k8s_pool}
-source_img_location=${source_img_location:-/tmp/ubuntu-22.04-server-cloudimg-amd64.img}
+source_img_location=${source_img_location:-"https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"}
+
+### Precheck the source image (download if it's a URL and update the source_img_location)
+precheck_source_image() {
+  # Function to check if the source is an HTTP, HTTPS, or FTP URL
+  is_url() {
+    [[ "$1" =~ ^(https?|ftp):// ]]
+  }
+
+  # If the source_img_location is an HTTP, HTTPS, or FTP URL
+  if is_url "$source_img_location"; then
+    # Define the local file path for storing the image
+    local_file="/tmp/$(basename "$source_img_location")"
+    
+    # If file doesn't exist locally, download it
+    if [[ ! -f "$local_file" ]]; then
+      echo "File not found locally. Downloading from $source_img_location..."
+      curl -L -o "$local_file" "$source_img_location"
+    else
+      echo "File already exists locally at $local_file"
+    fi
+
+    # Update source_img_location to the local file path
+    source_img_location="$local_file"
+
+  # If the source_img_location is a local path
+  elif [[ ! -f "$source_img_location" ]]; then
+    echo "File $source_img_location not found locally."
+    exit 1
+  fi
+}
 
 ### Terraform to provision infrastruce
 function provision_infra(){
@@ -57,15 +87,19 @@ EOL
 
 ### Ansible playbook to install kubernetes cluster
 function playbook_install_k8s() {
+    ansible_extra_vars=("$@")
     cd "$work_dir/ansible"
     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
     -i inventory.ini \
     -u $user \
     playbook.yml \
-    -vv
+    -vv \
+    "${ansible_extra_vars[@]}"
 }
 
 function main() {
+
+    precheck_source_image
 
     provision_infra "$@"
 

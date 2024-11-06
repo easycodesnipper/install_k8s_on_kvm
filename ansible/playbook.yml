@@ -4,7 +4,7 @@
   vars_files:
     - vars.yml
   roles:
-    - precheck
+    - preinstall
     - install_docker
     - config_containerd
     - install_k8s
@@ -24,4 +24,4 @@
     - vars.yml
   roles:
     - worker_join
-    - postcheck
+    - postinstall

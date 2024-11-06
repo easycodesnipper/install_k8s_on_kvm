@@ -1,0 +1,25 @@
+
+- name: Download Metric Server YAML
+  get_url:
+    url: "https://github.com/kubernetes-sigs/metrics-server/releases/download/v{{ metric_server_version }}/components.yaml"
+    dest: "/tmp/metric-server.yml"
+    force: yes
+  register: download_rc
+  retries: 10
+  delay: 5
+  until: download_rc is succeeded
+
+- name: Modify YAML with --kubelet-insecure-tls option
+  lineinfile:
+    path: "/tmp/metric-server.yml"
+    insertafter: '- args:'
+    line: '        - --kubelet-insecure-tls'
+
+- name: Install Metric Server
+  become: false
+  command: kubectl apply -f /tmp/metric-server.yml
+
+# - name: Remove temporary YAML
+#   file:
+#     path: "/tmp/metric-server.yml"
+#     state: absent

@@ -110,11 +110,11 @@ function playbook_install_k8s() {
 
 function main() {
 
-    precheck_source_image
+    # precheck_source_image
 
-    provision_infra "$@"
+    # provision_infra "$@"
 
-    auto_gen_inventory "$@"
+    # auto_gen_inventory "$@"
 
     playbook_install_k8s "$@"
 }

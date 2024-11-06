@@ -19,7 +19,7 @@
   become: false
   command: kubectl apply -f /tmp/metric-server.yml
 
-# - name: Remove temporary YAML
-#   file:
-#     path: "/tmp/metric-server.yml"
-#     state: absent
+- name: Remove temporary YAML
+  file:
+    path: "/tmp/metric-server.yml"
+    state: absent

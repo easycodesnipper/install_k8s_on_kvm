@@ -123,7 +123,7 @@ function main() {
     echo "------------------------------"
 
     echo "Install kubernetes..."
-    playbook_install_k8s "${all_args[@]}"
+    playbook_install_k8s "$@"
 }
 
 main "$@"

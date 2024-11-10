@@ -1,0 +1,42 @@
+- name: Install the Tigera Calico operator
+  become: false
+  command: >
+    kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v{{ k8s_calico_version }}/manifests/tigera-operator.yaml --validate=false
+
+  register: install_opt
+  retries: 10
+  delay: 5
+  until: install_opt.rc == 0
+- name: Download custom resource YAML
+  get_url:
+    url: "https://raw.githubusercontent.com/projectcalico/calico/v{{ k8s_calico_version }}/manifests/custom-resources.yaml"
+    dest: "/tmp/custom-resources.yaml"
+    force: yes
+  register: download_rc
+  retries: 10
+  delay: 5
+  until: download_rc is succeeded
+- name: Update CIDR in custom-resources.yaml
+  replace:
+    path: "/tmp/custom-resources.yaml"
+    regexp: 'cidr: (\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/\d{1,2})'
+    replace: 'cidr: {{ k8s_cidr }}'
+- name: Install Calico custom resource
+  become: false
+  command: >
+    kubectl create -f /tmp/custom-resources.yaml
+
+  register: install_cust
+  retries: 10
+  delay: 5
+  until: install_cust.rc == 0
+- name: Download calicoctl binary
+  get_url:
+    url: "https://github.com/projectcalico/calico/releases/download/v{{ k8s_calico_version }}/calicoctl-linux-amd64"
+    dest: /usr/local/bin/calicoctl
+    mode: '0755'
+    force: yes # Force the download
+  register: install_calicoctl
+  retries: 10
+  delay: 5
+  until: install_calicoctl is not none and install_calicoctl.changed == true

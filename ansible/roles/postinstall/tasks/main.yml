@@ -1,3 +1,7 @@
+- name: Install metric server
+  include_role:
+    name: install_metric_server
+  when: k8s_metric_server_enabled and inventory_hostname in groups['k8s_master']
 
 - name: Restart containerd service
   systemd:
@@ -6,11 +10,9 @@
 
 - name: Wait for all pods to be ready
   become: false
-  command: kubectl wait --for=condition=ready pod --all -n kube-system --timeout=60s
-  ignore_errors: yes
+  command: kubectl wait --for=condition=ready pod --all --all-namespaces
+  register: pod_status
+  retries: 10
+  delay: 30
+  until: pod_status.rc == 0
   when: inventory_hostname in groups['k8s_master']
-
-- name: Install metric server
-  include_role:
-    name: install_metric_server
-  when: metric_server_enabled and inventory_hostname in groups['k8s_master']

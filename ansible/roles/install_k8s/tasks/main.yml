@@ -1,6 +1,6 @@
 - name: Download Kubernetes GPG key
   get_url:
-    url: {{ k8s_gpg_key }}
+    url: "{{ k8s_gpg_key }}"
     dest: /tmp/k8s.gpg
     mode: '0644'
 

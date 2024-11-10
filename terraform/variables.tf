@@ -1,7 +1,7 @@
 variable "total_nodes" {
   description = "Total number of nodes (master + workers)"
   type        = number
-  default     = 2
+  default     = 3
 }
 
 variable "user" {
@@ -49,7 +49,7 @@ variable "vcpu_count" {
 variable "memory_size" {
   description = "VM memory size in GB"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 variable "source_img_location" {

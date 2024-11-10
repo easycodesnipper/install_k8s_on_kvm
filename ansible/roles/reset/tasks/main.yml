@@ -12,7 +12,14 @@
     path: /etc/cni/net.d
     state: absent
 
+- name: Set a fact for users
+  set_fact:
+    users_to_remove:
+      - root
+      - "{{ ansible_user }}"
+
 - name: Remove Kubernetes config
   file:
-    path: "/home/{{ ansible_user }}/.kube"
+    path: "{{ (item == 'root' and '/root' or '/home/' + item) }}/.kube"
     state: absent
+  loop: "{{ users_to_remove }}"

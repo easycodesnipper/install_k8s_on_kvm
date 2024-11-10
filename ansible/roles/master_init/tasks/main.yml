@@ -11,18 +11,26 @@
   register: kubeadm_init
   changed_when: "'kubeadm join' in kubeadm_init.stdout"
 
+- name: Set a fact for users
+  set_fact:
+    users_to_create:
+      - root
+      - "{{ ansible_user }}"
+
 - name: Ensure .kube directory exists
   file:
-    path: "/home/{{ ansible_user }}/.kube"
+    path: "{{ (item == 'root' and '/root' or '/home/' + item) }}/.kube"
     state: directory
     mode: '0755'
+  loop: "{{ users_to_create }}"
 
 - name: Copy Kubernetes admin.conf to .kube/config
   copy:
     src: /etc/kubernetes/admin.conf
-    dest: "/home/{{ ansible_user }}/.kube/config"
+    dest: "{{ (item == 'root' and '/root' or '/home/' + item) }}/.kube/config"
     remote_src: yes  # Indicate that the source file is on the remote machine
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
+    owner: "{{ item }}"
+    group: "{{ item }}"
     mode: '0644'
+  loop: "{{ users_to_create }}"
 

@@ -7,12 +7,13 @@ inventory_file="$work_dir/ansible/inventory.ini"
 user=${user:-ubuntu}
 k8s_pool_path=${k8s_pool_path:-/mnt/data_lvm/k8s_pool}
 source_img_location=${source_img_location:-"https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"}
-total_nodes=${total_nodes:-2} # By default, the first one will be taken as master
 boot_volume_size=${boot_volume_size:-10} # in GB
 data_volume_size=${data_volume_size:-20} # in GB
 vcpu_count=${vcpu_count:-2}
 memory_size=${memory_size:-2} # in GB
+total_nodes=${total_nodes:-3} # By default, the first one will be taken as master
 
+provision_infra=${provision_infra:-true}
 
 ### Precheck the source image (download if it's a URL and update the source_img_location)
 precheck_source_image() {
@@ -109,14 +110,20 @@ function playbook_install_k8s() {
 }
 
 function main() {
+    if [ "$provision_infra" = true ]; then
+      echo "Provisioning cluster infrastructure..."
+      precheck_source_image
+      provision_infra "$@"
+      auto_gen_inventory "$@"
+    fi
 
-    # precheck_source_image
+    echo "Dump cluster infrastructure..."
+    echo "------------------------------"
+    cat "$inventory_file"
+    echo "------------------------------"
 
-    # provision_infra "$@"
-
-    # auto_gen_inventory "$@"
-
-    playbook_install_k8s "$@"
+    echo "Install kubernetes..."
+    playbook_install_k8s "${all_args[@]}"
 }
 
 main "$@"

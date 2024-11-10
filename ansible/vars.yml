@@ -2,9 +2,9 @@
 docker_version: "20.10.7"
 
 k8s_version: "1.31.2"
-
 k8s_minor_version: "{{ k8s_version | regex_replace('\\.\\d+$', '') }}"
-
+k8s_gpg_key: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key"
+k8s_repo: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"
 k8s_cidr: "10.244.0.0/16"
 
 calico_version: "3.28.2"
@@ -12,5 +12,4 @@ calico_version: "3.28.2"
 flannel_version: "0.26.0"
 
 metric_server_version: "0.7.2"
-
 metric_server_enabled: false

@@ -1,6 +1,6 @@
 - name: Download Kubernetes GPG key
   get_url:
-    url: https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key
+    url: {{ k8s_gpg_key }}
     dest: /tmp/k8s.gpg
     mode: '0644'
 
@@ -16,7 +16,7 @@
 - name: Add Kubernetes repository
   lineinfile:
     path: /etc/apt/sources.list.d/kubernetes.list
-    line: "deb [arch=amd64 signed-by=/usr/share/keyrings/k8s.gpg] https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"
+    line: "deb [arch=amd64 signed-by=/usr/share/keyrings/k8s.gpg] {{ k8s_repo }}"
     create: yes
 
 - name: Update apt package index

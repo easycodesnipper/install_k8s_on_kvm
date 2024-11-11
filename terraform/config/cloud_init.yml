@@ -18,6 +18,7 @@ growpart:
 # Install helm
 package_update: true
 packages:
+  - qemu-guest-agent # If using bridge network, this package is required
   - apt-transport-https
   - ca-certificates
   - curl
@@ -25,6 +26,7 @@ packages:
   - software-properties-common
 
 runcmd:
+  - systemctl enable --now qemu-guest-agent # If using bridge network, this service should be running
   - curl https://baltocdn.com/helm/signing.asc | apt-key add -
   - echo "deb https://baltocdn.com/helm/stable/debian/ all main" | tee /etc/apt/sources.list.d/helm-stable-debian.list
   - apt-get update

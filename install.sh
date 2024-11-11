@@ -12,7 +12,7 @@ data_volume_size=${data_volume_size:-20} # in GB
 vcpu_count=${vcpu_count:-2}
 memory_size=${memory_size:-2} # in GB
 total_nodes=${total_nodes:-3} # By default, the first one will be taken as master
-
+network_mode=${network_mode:-"nat"}
 provision_infra=${provision_infra:-true}
 
 ### Precheck the source image (download if it's a URL and update the source_img_location)
@@ -64,6 +64,7 @@ function provision_infra(){
     -var="data_volume_size=$data_volume_size" \
     -var="vcpu_count=$vcpu_count" \
     -var="memory_size=$memory_size" \
+    -var="network_mode=$network_mode" \
     -auto-approve
 }
 

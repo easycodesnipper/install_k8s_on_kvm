@@ -1,8 +1,11 @@
 resource "libvirt_network" "k8s_net" {
   name = "k8s_net"
-  mode = "nat"
 
-  addresses = ["192.168.100.0/24"]
+  mode = var.network_mode
+
+  # Conditional logic for the 'addresses' and 'bridge' attributes:
+  addresses = var.network_mode == "nat" ? var.network_subnet : null
+  bridge    = var.network_mode == "bridge" ? var.bridge_network : null
 
   dns {
     enabled    = true
@@ -13,3 +16,4 @@ resource "libvirt_network" "k8s_net" {
     enabled = true
   }
 }
+  

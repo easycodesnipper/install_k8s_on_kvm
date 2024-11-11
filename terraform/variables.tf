@@ -57,3 +57,29 @@ variable "source_img_location" {
   type = string
   default = "https://cloud-images.ubuntu.com/releases/jammy/release/ubuntu-22.04-server-cloudimg-amd64.img"
 }
+
+variable "cpu_mode" {
+  description = "The CPU mode"
+  type = string
+  default = "host-passthrough"
+}
+
+variable "network_mode" {
+  description = "The network mode nat or bridge"
+  type = string
+  default = "nat"
+}
+
+# if network_model is bridge, bridge network interface name is required
+variable "bridge_network" {
+  description = "The bridged network interface name"
+  type = string
+  default = "br0"
+}
+
+# if network_model is nat, subnet is required
+variable "network_subnet" {
+  description = "List of subnets for the network (e.g., ['192.168.100.0/24', '192.168.200.0/24'])"
+  type        = list(string)
+  default     = ["10.17.3.0/24"]
+}

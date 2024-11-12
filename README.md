@@ -68,13 +68,14 @@ subnet 192.168.4.0 netmask 255.255.255.0 {
 }
 ...
 
-sudo vim /etc/default/isc-dhcp-server
 # Set the INTERFACESv4 variable to your network interface name
+sudo vim /etc/default/isc-dhcp-server
 INTERFACESv4="br0"
 
+# Enable and start DHCP server
 sudo systemctl enable --now isc-dhcp-server
 
-```bash
-network_mode=bridge ./install.sh # Install with bridge mode
+# Install with bridge mode
+network_mode=bridge ./install.sh
 ```
 

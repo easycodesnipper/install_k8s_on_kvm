@@ -31,6 +31,6 @@
     remote_src: yes  # Indicate that the source file is on the remote machine
     owner: "{{ item }}"
     group: "{{ item }}"
-    mode: '0644'
+    mode: '0600'
   loop: "{{ users_to_create }}"
 

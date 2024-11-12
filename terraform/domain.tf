@@ -16,6 +16,7 @@ resource "libvirt_domain" "k8s_node" {
     volume_id = element(libvirt_volume.data_volume.*.id, count.index)
   }
 
+  # if bridge network enabled, qemu_agent need to be enabled 
   qemu_agent = libvirt_network.k8s_net.mode == "bridge" ? true : false
 
   network_interface {

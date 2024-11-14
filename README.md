@@ -10,6 +10,7 @@ One-Key to install Kubernetes cluster on KVM guest machines leveraged by Infrast
 ### Reset existing Kubernetes cluster and reinstall
 provision_infra=false ./install.sh -e k8s_reset=true
 ```
+
 ### For bridge network mode
 ## Prerequisite
 1. Create bridge network.
@@ -79,3 +80,40 @@ sudo systemctl enable --now isc-dhcp-server
 network_mode=bridge ./install.sh
 ```
 
+### Supported provision options
+user=${user:-ubuntu}
+k8s_pool_path=${k8s_pool_path:-/mnt/data_lvm/k8s_pool}
+source_img_location=${source_img_location:-"https://cloud-images.ubuntu.com/releases/22.04/release/ubuntu-22.04-server-cloudimg-amd64.img"}
+boot_volume_size=${boot_volume_size:-10} # in GB
+data_volume_size=${data_volume_size:-20} # in GB
+vcpu_count=${vcpu_count:-2}
+memory_size=${memory_size:-2} # in GB
+total_nodes=${total_nodes:-3} # By default, the first one will be taken as master
+network_mode=${network_mode:-"nat"}
+provision_infra=${provision_infra:-true}
+
+Usage: 
+```bash
+[<key1=value1> <key2=value2> ...] ./install.sh
+```
+
+### Supported install options
+-e docker_version: "20.10.7"
+-e k8s_version: "1.31.2"
+-e k8s_minor_version: "{{ k8s_version | regex_replace('\\.\\d+$', '') }}"
+-e k8s_gpg_key: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key"
+-e k8s_repo: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"
+-e k8s_cidr: "10.244.0.0/16"
+-e k8s_cni: flannel
+-e k8s_metric_server_enabled: false
+-e k8s_reset: false
+
+Usage:
+```bash
+./install [-e <key1=value1> -e <key2=value2>... ]
+```
+
+The provision options and install options can be used together as follows.
+```bash
+[<key1=value1> <key2=value2> ...] ./install.sh [-e <key3=value3> -e <key4=value4>... ]
+```

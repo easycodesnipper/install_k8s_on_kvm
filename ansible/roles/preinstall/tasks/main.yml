@@ -19,9 +19,14 @@
     - overlay
     - br_netfilter
 
+- name: Create k8s.conf sysctl file if not exist
+  file:
+    path: /etc/sysctl.d/k8s.conf
+    state: touch
+
 - name: Set sysctl parameters for bridge networking
   lineinfile:
-    path: /etc/sysctl.conf
+    path: /etc/sysctl.d/k8s.conf
     line: "{{ item.key }} = {{ item.value }}"
     state: present
   loop:

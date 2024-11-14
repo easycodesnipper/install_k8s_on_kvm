@@ -92,7 +92,7 @@ total_nodes=${total_nodes:-3} # By default, the first one will be taken as maste
 network_mode=${network_mode:-"nat"}
 provision_infra=${provision_infra:-true}
 
-Usage: 
+Usage:
 ```bash
 [<key1=value1> <key2=value2> ...] ./install.sh
 ```

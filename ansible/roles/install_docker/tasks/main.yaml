@@ -1,32 +1,45 @@
 ---
 
-- name: Download Docker installation script
-  get_url:
-    url: https://get.docker.com
-    dest: /tmp/get-docker.sh
-    mode: '0755'
-  register: download_rc
-  retries: 10
-  delay: 5
-  until: download_rc is succeeded
+- name: Check if Docker is already installed
+  command: docker info
+  register: docker_installed
+  ignore_errors: yes
+  changed_when: false
 
-- name: Install specific version of Docker
-  shell: |
-    DOCKER_VERSION={{ docker_version }} sh /tmp/get-docker.sh
-  args:
-    executable: /bin/bash
+- name: Install docker if not installed
+  block:
+  - name: Download Docker installation script
+    get_url:
+      url: https://get.docker.com
+      dest: /tmp/get-docker.sh
+      mode: '0755'
+    register: download_rc
+    retries: 10
+    delay: 5
+    until: download_rc is succeeded
 
-- name: Start and enable Docker
-  systemd:
-    name: docker
-    state: started
-    enabled: yes
+  - name: Install specific version of Docker
+    shell: |
+      DOCKER_VERSION={{ docker_version }} sh /tmp/get-docker.sh {% if docker_mirror | default('') != '' %}--mirror {{ docker_mirror }}{% endif %}
+    args:
+      executable: /bin/bash
+    retries: 5
+    delay: 10
+    register: result
+    until: result.rc == 0
 
-- name: Add user to Docker group
-  user:
-    name: "{{ ansible_user }}"
-    groups: docker
-    append: yes
+  - name: Start and enable Docker
+    systemd:
+      name: docker
+      state: started
+      enabled: yes
+
+  - name: Add user to Docker group
+    user:
+      name: "{{ ansible_user }}"
+      groups: docker
+      append: yes
+  when: docker_installed.rc != 0
 
 
 

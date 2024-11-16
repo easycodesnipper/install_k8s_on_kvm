@@ -3,33 +3,40 @@
   become: true
   vars_files:
     - vars.yml
+  pre_tasks:
+    - name: Dump all groups
+      debug:
+        var: groups
+
+    - name: Check if Kubernetes cluster is ready
+      command: kubectl get pods -A
+      register: k8s_ready
+      ignore_errors: yes
+      when: (not k8s_reset | bool) and inventory_hostname in groups['k8s_master']
+
+    - name: Fail and stop the playbook since Kubernetes cluster is ready
+      fail:
+        msg: "Kubernetes cluster is already ready, skip to install."
+      when: (not k8s_reset | bool) and (k8s_ready.rc == 0)
   roles:
+    - name: reset
+      when: k8s_reset | bool
+
     - name: preinstall
       when: not k8s_reset | bool
     
-    - name: install_docker
-      when: not k8s_reset | bool
-
-    - name: config_containerd
+    - name: install_containerd
       when: not k8s_reset | bool
 
     - name: install_k8s
       when: not k8s_reset | bool
     
-    - reset
+    - name: master_init
+      when: inventory_hostname in groups['k8s_master']
 
-- hosts: k8s_master
-  become: true
-  vars_files:
-    - vars.yml
-  roles:
-    - master_init
-    - install_cni
+    - name: install_cni
+      when: inventory_hostname in groups['k8s_master']
 
-- hosts: k8s_all
-  become: true
-  vars_files:
-    - vars.yml
-  roles:
-    - worker_join
-    - postinstall
+    - name: worker_join
+
+    - name: postinstall

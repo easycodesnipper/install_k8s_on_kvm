@@ -70,6 +70,18 @@ variable "network_mode" {
   default = "nat"
 }
 
+variable "domain" {
+  description = "The network domain"
+  type = string
+  default = "k8s.local"
+}
+
+variable "mtu" {
+  description = "The network mtu"
+  type = number
+  default = 1500
+}
+
 # if network_model is bridge, bridge network interface name is required
 variable "bridge_network" {
   description = "The bridged network interface name"

@@ -4,10 +4,10 @@
 One-Key to install Kubernetes cluster on KVM guest machines leveraged by Infrastructure as Code tools Terraform and Ansible
 
 ```bash
-### Install fresh Kubernetes cluster
-./install.sh 
+### Install fresh Kubernetes cluster, this will provision guest vms infrastructure and install kubernetes
+total_nodes=<N> ./install.sh # The first node is master, the remaining nodes are workers, if not specified, N is 3 by default.
 
-### Reset existing Kubernetes cluster and reinstall
+### Reserve existing infrastructure and reset and reinstall Kubernetes cluster
 provision_infra=false ./install.sh -e k8s_reset=true
 ```
 
@@ -48,7 +48,7 @@ network:
 sudo netplan apply
 ```
 
-2. A DHCP server is required to install on the host machine.
+2. Setup DHCP server on the host machine -- optional(If the router with DHCP server) 
 
 ```bash
 sudo apt update
@@ -100,14 +100,16 @@ Usage:
 
 ### Supported install options
 - `-e docker_version: "20.10.7"`
+- `docker_mirror: "" # Aliyun or AzureChinaCloud supported`
 - `-e k8s_version: "1.31.2"`
-- `-e k8s_minor_version: "{{ k8s_version | regex_replace('\\.\\d+$', '') }}"`
-- `-e k8s_gpg_key: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/Release.key"`
-- `-e k8s_repo: "https://pkgs.k8s.io/core:/stable:/v{{ k8s_minor_version }}/deb/ /"`
+- `-e k8s_repo_uri: "https://pkgs.k8s.io"`
 - `-e k8s_cidr: "10.244.0.0/16"`
-- `-e k8s_cni: flannel`
-- `-e k8s_metric_server_enabled: false`
-- `-e k8s_reset: false`
+- `-e k8s_cni: flannel` # flannel or calico is supported
+- `-e k8s_metric_server_enabled: false` # if install metric server
+- `-e k8s_reset: false` # if reset exising kubernetes
+- `-e k8s_calico_version: "3.28.2"`
+- `-e k8s_flannel_version: "0.26.0"`
+- `-e metric_server_version: "0.7.2"`
 
 Usage:
 ```bash
@@ -117,4 +119,12 @@ Usage:
 The provision options and install options can be used together as follows.
 ```bash
 [<key1=value1> <key2=value2> ...] ./install.sh [-e <key3=value3> -e <key4=value4>... ]
+```
+
+Due to notorious(臭名昭著) *[GFW](https://en.wikipedia.org/wiki/Great_Firewall)*, some images cannot pulled in China, here is the workaround.
+```bash
+network_mode=bridge ./install.sh \
+-e docker_mirror="Aliyun" \
+-e k8s_repo_uri="https://mirrors.aliyun.com/kubernetes-new" \
+-e k8s_gcr="registry.cn-hangzhou.aliyuncs.com/google_containers"
 ```

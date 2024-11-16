@@ -1,0 +1,96 @@
+---
+- name: Check if containerd is installed
+  command: containerd --version
+  register: containerd_installed
+  ignore_errors: yes
+
+- name: Install containerd if not installed
+  block:
+  - name: Install required dependencies
+    apt:
+      name:
+        - apt-transport-https
+        - ca-certificates
+        - curl
+        - gnupg
+        - lsb-release
+      state: present
+      update_cache: yes
+
+  - name: Download Docker GPG key
+    get_url:
+      url: "https://download.docker.com/linux/ubuntu/gpg"
+      dest: /tmp/docker.gpg
+      mode: '0644'
+    register: download_result
+    retries: 10
+    delay: 5
+    until: download_result is succeeded
+
+  - name: Convert GPG key to dearmor format
+    command: >
+      gpg --yes --dearmor -o /usr/share/keyrings/docker.gpg /tmp/docker.gpg
+
+  - name: Remove temporary GPG key file
+    file:
+      path: /tmp/docker.gpg
+      state: absent
+
+  - name: Add Docker repository
+    lineinfile:
+      path: /etc/apt/sources.list.d/docker.list
+      line: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
+      create: yes
+
+  - name: Install containerd
+    apt:
+      name:
+        - containerd.io
+      state: present
+      update_cache: yes
+
+  - name: Ensure containerd configuration directory exists
+    file:
+      path: /etc/containerd
+      state: directory
+      mode: '0755'
+
+  - name: Generate containerd default configuration
+    command: containerd config default
+    register: containerd_config
+
+  - name: Write containerd configuration to file
+    copy:
+      content: "{{ containerd_config.stdout }}"
+      dest: /etc/containerd/config.toml
+      mode: '0644'
+
+  - name: Enable SystemdCgroup in containerd config
+    lineinfile:
+      path: /etc/containerd/config.toml
+      regexp: '^ *SystemdCgroup *= *false'
+      line: 'SystemdCgroup = true'
+      backrefs: yes
+
+  - name: Ensure the containerd service directory exists
+    file:
+      path: /etc/systemd/system/containerd.service.d
+      state: directory
+      mode: '0755'
+
+  - name: Create or update containerd proxy configuration file
+    copy:
+      dest: /etc/systemd/system/containerd.service.d/10-proxy.conf
+      content: |
+        [Service]
+        Environment="HTTP_PROXY={{ http_proxy | default('') }}"
+        Environment="HTTPS_PROXY={{ https_proxy | default('') }}"
+        Environment="NO_PROXY={{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
+      mode: '0644'
+
+  - name: Restart containerd service
+    systemd:
+      name: containerd
+      state: restarted
+      daemon_reload: true
+  when: containerd_installed.rc != 0

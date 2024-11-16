@@ -7,6 +7,10 @@ resource "libvirt_network" "k8s_net" {
   addresses = var.network_mode == "nat" ? var.network_subnet : null
   bridge    = var.network_mode == "bridge" ? var.bridge_network : null
 
+  mtu = var.network_mode == "nat" ? var.mtu : null
+
+  domain = var.network_mode == "nat" ? var.domain : null
+
   dns {
     enabled    = true
     local_only = true

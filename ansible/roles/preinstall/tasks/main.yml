@@ -1,14 +1,30 @@
-- name: Disable swap in /etc/fstab
+
+- name: Check if swap entry is uncommented in /etc/fstab
+  shell: |
+    grep -E '^[^#].*swap' /etc/fstab
+  register: swap_entry
+  changed_when: false
+  failed_when: false
+
+- name: Comment out swap entry in /etc/fstab
   lineinfile:
     path: /etc/fstab
-    regexp: '^\s*[^#].*swap'
-    line: '#\0'
-  ignore_errors: yes
+    regexp: '^\s*(.*swap.*)'  # Match any line containing 'swap'
+    line: '# \1'  # Prepend '#' to comment out the swap entry
+    state: present
+  register: swap_comment_out
+  when: swap_entry.stdout | length > 0  # Only run this if swap_entry is found
+
+- name: Check if /etc/modules-load.d/k8s.conf exists
+  stat:
+    path: /etc/modules-load.d/k8s.conf
+  register: k8s_modules_conf
 
 - name: Create k8s.conf kernel module file if not exist
   file:
     path: /etc/modules-load.d/k8s.conf
     state: touch
+  when: not k8s_modules_conf.stat.exists
 
 - name: Ensure k8s.conf exists with required kernel modules
   lineinfile:
@@ -18,11 +34,19 @@
   loop:
     - overlay
     - br_netfilter
+  register: config_kernel_module
+  when: not k8s_modules_conf.stat.exists
+
+- name: Check if /etc/sysctl.d/k8s.conf exists
+  stat:
+    path: /etc/sysctl.d/k8s.conf
+  register: k8s_sysctl_conf
 
 - name: Create k8s.conf sysctl file if not exist
   file:
     path: /etc/sysctl.d/k8s.conf
     state: touch
+  when: not k8s_sysctl_conf.stat.exists
 
 - name: Set sysctl parameters for bridge networking
   lineinfile:
@@ -33,16 +57,33 @@
     - { key: "net.bridge.bridge-nf-call-iptables", value: "1" }
     - { key: "net.bridge.bridge-nf-call-ip6tables", value: "1" }
     - { key: "net.ipv4.ip_forward", value: "1" }
+  register: config_sysctl
+  when: not k8s_sysctl_conf.stat.exists
+
+- name: Proxy settings in /etc/environment
+  blockinfile:
+    path: /etc/environment
+    marker: "# {mark} ANSIBLE MANAGED BLOCK - Proxy Settings"
+    block: |
+      http_proxy="{{ http_proxy | default('')  }}"
+      https_proxy="{{ https_proxy | default('') }}"
+      ftp_proxy="{{ ftp_proxy | default('') }}"
+      no_proxy="{{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
+
+- name: Set a fact if reboot needed
+  set_fact:
+    need_reboot: (swap_comment_out.changed)  or (config_kernel_module.changed) or (config_sysctl.changed)
 
 - name: Reboot the machine
   reboot:
     reboot_timeout: 300  # Adjust as needed
     test_command: whoami  # Command to check if the machine is up
   register: reboot_result
+  when: need_reboot == true
 
 - name: Wait for the machine to become available
   wait_for:
     timeout: 300  # Adjust as needed
     port: 22  # Default SSH port, change if needed
     state: started
-  when: reboot_result is changed
+  when: need_reboot and (reboot_result is changed)

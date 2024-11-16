@@ -2,7 +2,7 @@
 - name: Check if kubeadm is installed
   command: kubeadm version
   register: kubeadm_installed
-  ignore_errors: yes  # Continue even if the command fails
+  ignore_errors: yes
 
 - name: Check if kubelet is installed
   command: kubelet --version
@@ -12,6 +12,7 @@
 - name: Check if kubectl is installed
   command: kubectl version --client
   register: kubectl_installed
+  ignore_errors: yes
 
 - name: Install kubeadm kubelet kubectl components
   block:

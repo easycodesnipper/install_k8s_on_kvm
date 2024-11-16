@@ -4,10 +4,6 @@
   vars_files:
     - vars.yml
   pre_tasks:
-    - name: Dump all groups
-      debug:
-        var: groups
-
     - name: Check if Kubernetes cluster is ready
       command: kubectl get pods -A
       register: k8s_ready

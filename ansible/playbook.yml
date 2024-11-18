@@ -19,7 +19,7 @@
 
     - name: Fail the playbook globally if Kubernetes cluster is already ready
       fail:
-        msg: "Kubernetes cluster is already ready, skipping installation steps."
+        msg: "Kubernetes cluster is already ready, skipping installation, ./install.sh -e k8s_reset=true can be used to reset existing Kubernetes cluster"
       when: k8s_cluster_ready | default(false)
 
     - name: Proxy settings in /etc/environment

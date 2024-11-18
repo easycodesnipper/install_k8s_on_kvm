@@ -1,8 +1,10 @@
 ---
 - hosts: k8s_all
   become: true
+  any_errors_fatal: True
   vars_files:
     - vars.yml
+
   pre_tasks:
     - name: Check if Kubernetes cluster is ready
       command: kubectl get pods -A
@@ -10,10 +12,28 @@
       ignore_errors: yes
       when: (not k8s_reset | bool) and inventory_hostname in groups['k8s_master']
 
-    - name: Fail and stop the playbook since Kubernetes cluster is ready
+    - name: Set fact if Kubernetes cluster is ready
+      set_fact:
+        k8s_cluster_ready: "{{ k8s_ready.rc == 0 }}"
+      when: (not k8s_reset | bool) and inventory_hostname in groups['k8s_master']
+
+    - name: Fail the playbook globally if Kubernetes cluster is already ready
       fail:
-        msg: "Kubernetes cluster is already ready, skip to install."
-      when: (not k8s_reset | bool) and (k8s_ready.rc == 0)
+        msg: "Kubernetes cluster is already ready, skipping installation steps."
+      when: k8s_cluster_ready | default(false)
+
+    - name: Proxy settings in /etc/environment
+      blockinfile:
+        path: /etc/environment
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - Proxy Settings"
+        block: |
+          http_proxy="{{ http_proxy | default('') }}"
+          https_proxy="{{ https_proxy | default('') }}"
+          no_proxy="{{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
+      when:
+        - (http_proxy | default('')) != ''
+        - (https_proxy | default('')) != ''
+
   roles:
     - name: reset
       when: k8s_reset | bool

@@ -60,30 +60,18 @@
   register: config_sysctl
   when: not k8s_sysctl_conf.stat.exists
 
-- name: Proxy settings in /etc/environment
-  blockinfile:
-    path: /etc/environment
-    marker: "# {mark} ANSIBLE MANAGED BLOCK - Proxy Settings"
-    block: |
-      http_proxy="{{ http_proxy | default('')  }}"
-      https_proxy="{{ https_proxy | default('') }}"
-      ftp_proxy="{{ ftp_proxy | default('') }}"
-      no_proxy="{{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
+- name: Reboot machine and wait to be available
+  block:
+  - name: Reboot the machine
+    reboot:
+      reboot_timeout: 300  # Adjust as needed
+      test_command: whoami  # Command to check if the machine is up
+    register: reboot_result
 
-- name: Set a fact if reboot needed
-  set_fact:
-    need_reboot: (swap_comment_out.changed)  or (config_kernel_module.changed) or (config_sysctl.changed)
-
-- name: Reboot the machine
-  reboot:
-    reboot_timeout: 300  # Adjust as needed
-    test_command: whoami  # Command to check if the machine is up
-  register: reboot_result
-  when: need_reboot == true
-
-- name: Wait for the machine to become available
-  wait_for:
-    timeout: 300  # Adjust as needed
-    port: 22  # Default SSH port, change if needed
-    state: started
-  when: need_reboot and (reboot_result is changed)
+  - name: Wait for the machine to become available
+    wait_for:
+      timeout: 300  # Adjust as needed
+      port: 22  # Default SSH port, change if needed
+      state: started
+    when: reboot_result is changed
+  when: swap_comment_out.changed or config_kernel_module.changed or config_sysctl.changed

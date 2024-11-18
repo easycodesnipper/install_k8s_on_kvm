@@ -41,6 +41,10 @@
       line: "deb [arch=amd64 signed-by=/usr/share/keyrings/k8s.gpg] {{ k8s_repo_uri }}/core:/stable:/v{{ k8s_version | regex_replace('\\.\\d+$', '') }}/deb/ /"
       create: yes
 
+  - name: Run apt-get update
+    apt:
+      update_cache: yes
+
   - name: Install Kubernetes components
     apt:
       name:
@@ -48,7 +52,6 @@
         - kubeadm={{  k8s_version  }}*
         - kubectl={{  k8s_version  }}*
       state: present
-      update_cache: yes
 
   - name: Mark Kubernetes packages on hold
     command: apt-mark hold {{ item }}

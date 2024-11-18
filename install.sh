@@ -110,8 +110,24 @@ function playbook_install_k8s() {
     "${ansible_extra_vars[@]}"
 }
 
+### Cleanup existing provisioned infrastructure
+function cleanup_infra() {
+    cd "$work_dir/terraform" || { echo "Terraform directory not found!"; exit 1; }
+    if [ -f "terraform.tfstate" ]; then
+      echo "Terraform state file found. Proceeding with cleanup..."
+      terraform destroy -auto-approve
+      echo "Terraform resources destroyed and state cleaned up."
+    else
+      echo "No Terraform state file found. Nothing to clean up."
+    fi
+}
+
 function main() {
     if [ "$provision_infra" = true ]; then
+
+      echo "Cleanup existing provisioned infrastructure..."
+      cleanup_infra
+
       echo "Provisioning cluster infrastructure..."
       precheck_source_image
       provision_infra "$@"

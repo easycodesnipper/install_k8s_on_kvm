@@ -31,6 +31,30 @@
       line: "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_lsb.codename }} stable"
       create: yes
 
+  - name: Check if any apt process is running
+    shell: ps aux | grep '[a]pt' || true
+    register: apt_process
+    ignore_errors: true
+
+  - name: Wait for apt lock to be released if apt process is running
+    wait_for:
+      path: /var/lib/apt/lists/lock
+      state: absent
+      timeout: 300
+    ignore_errors: true
+    when: apt_process.stdout != ''
+
+  - name: Remove stale apt lock files
+    file:
+      path: "{{ item }}"
+      state: absent
+    with_items:
+      - /var/lib/apt/lists/lock
+      - /var/cache/apt/archives/lock
+      - /var/lib/dpkg/lock
+      - /var/lib/dpkg/lock-frontend
+    when: apt_process.stdout == ''
+
   - name: Run apt-get update
     apt:
       update_cache: yes

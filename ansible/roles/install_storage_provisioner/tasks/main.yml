@@ -7,16 +7,17 @@
     group: root
 
 - block:
-  - name: Install local-provisioner
+  - name: Install local-path-provisioner
     shell: |
       kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/{{ local_path_provisioner_version }}/deploy/local-path-storage.yaml
+      
 
   - name: Generate the local-path-provisioner ConfigMap with custom volume path
     template:
       src: provisioner-configmap.yaml.j2
       dest: /tmp/provisioner-configmap.yaml
     vars:
-      nodes: "{{ k8s_node_hosts }}"
+      nodes: "{{ k8s_node_map.keys() | list }}"
 
   - name: Apply the ConfigMap for local-path-provisioner
     shell: kubectl apply -f /tmp/provisioner-configmap.yaml

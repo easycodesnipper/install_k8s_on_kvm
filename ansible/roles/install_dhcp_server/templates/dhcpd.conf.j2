@@ -1,0 +1,26 @@
+# DHCP Server Configuration for ISC DHCP Server
+
+# Define the domain name
+option domain-name "{{ dhcp_domain_name }}";
+
+# Define the DNS servers for DHCP clients
+option domain-name-servers {{ dhcp_dns_servers | join(", ") }};
+
+# Define the default lease time and maximum lease time
+default-lease-time {{ dhcp_default_lease_time }};
+max-lease-time {{ dhcp_max_lease_time }};
+
+# Define the subnet and range of IP addresses
+subnet {{ dhcp_subnet }} netmask {{ dhcp_netmask }} {
+    range {{ dhcp_range_start }} {{ dhcp_range_end }};
+    option routers {{ dhcp_router }};
+    option broadcast-address {{ dhcp_broadcast }};
+}
+
+# Kubernetes Nodes Static Reservations
+{% for key, values in k8s_node_map.items() %}
+host {{ key }} {
+    hardware ethernet {{ values.mac }};
+    fixed-address {{ values.ip }};
+}
+{% endfor %}

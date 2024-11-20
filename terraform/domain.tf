@@ -24,6 +24,7 @@ resource "libvirt_domain" "k8s_node" {
   network_interface {
     network_id = libvirt_network.k8s_net.id 
     hostname   = "k8s-node-${count.index == 0 ? "master" : count.index}"
+    # mac = format("%s:%02X", var.mac_prefix, count.index)
     wait_for_lease = true # wait until the network interface gets a DHCP lease from libvirt, so that the computed IP addresses will be available
   }
 

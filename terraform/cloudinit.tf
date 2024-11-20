@@ -5,6 +5,7 @@ data "template_file" "user_data" {
     ssh_authorized_keys = trimspace(file(var.ssh_public_key))
     user                = var.user
     hostname            = "k8s-node-${count.index == 0 ? "master" : count.index}"
+    domain              = var.domain
   }
 }
 

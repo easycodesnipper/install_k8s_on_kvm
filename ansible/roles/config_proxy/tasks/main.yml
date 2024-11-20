@@ -1,11 +1,12 @@
+---
 - name: Proxy settings in /etc/environment
   blockinfile:
     path: /etc/environment
     marker: "# {mark} ANSIBLE MANAGED BLOCK - Proxy Settings"
     block: |
-      http_proxy="{{ http_proxy | default('') }}"
-      https_proxy="{{ https_proxy | default('') }}"
+      http_proxy="{{ http_proxy }}"
+      https_proxy="{{ https_proxy }}"
       no_proxy="{{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
   when:
-    - (http_proxy | default('')) != ''
-    - (https_proxy | default('')) != ''
+    - http_proxy | default('') != ''
+    - https_proxy | default('') != ''

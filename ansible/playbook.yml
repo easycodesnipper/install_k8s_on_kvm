@@ -1,74 +1,62 @@
----
-- name: Run tasks locally
-  hosts: localhost
-  connection: localhost  # Ensures tasks run locally without SSH
-  tasks:
-    - name: Retrieve ansible_host values and store in array
-      set_fact:
-        ansible_hosts_array: "{{ ansible_hosts_array | default([]) + [ hostvars[item].ansible_host ] }}"
-      loop: "{{ groups['k8s_all'] }}"
-
-- name: Run tasks remotely
+- name: Run playbook
   hosts: k8s_all
   become: true
   any_errors_fatal: True
   vars_files:
     - vars.yml
   vars:
-    k8s_node_hosts: "{{ hostvars['localhost'].ansible_hosts_array }}"
-
+    k8s_node_map: "{{ hostvars['localhost'].k8s_node_map }}"
   pre_tasks:
-    # - name: Loop through and debug each item in myvar
-    #   debug:
-    #     var: "{{ k8s_node_hosts }}"
-
-    # - name: Fail the playbook if Kubernetes cluster is ready
-    #   fail:
-    #     msg: "Debugging..."
-
     - block:
-      - block:
-        - name: Check if Kubernetes cluster already ready
+        - name: Check if Kubernetes cluster is ready
           command: kubectl get pods -A
           register: check_k8s_ready
           ignore_errors: yes
-          when: inventory_hostname in groups['k8s_master']
-
         - name: Set fact if Kubernetes cluster is ready
           set_fact:
             k8s_ready: "{{ check_k8s_ready.rc == 0 }}"
-          when: inventory_hostname in groups['k8s_master']
-
         - name: Fail the playbook if Kubernetes cluster is ready
           fail:
-            msg: "Kubernetes cluster is already ready, skipping installation, ./install.sh -e k8s_reset=true can be used to reset existing Kubernetes cluster"
-          when: inventory_hostname in groups['k8s_master'] and (k8s_ready | bool)
-        when: (not k8s_skip_precheck | bool)
-      when: (not k8s_reset | bool)
+            msg: |
+              Kubernetes cluster is already ready, skipping installation
+              `-e k8s_reset=true` option can be used to reset Kubernetes cluster
+              `-e k8s_skip_ready_check=true` option can be used to skip this precheck
+          when: 
+            - (not k8s_skip_ready_check | default(false) | bool) # if not skip check, fail the playbook
+            - (k8s_ready | default(false) | bool)
+      when:
+        - (not k8s_reset | default(false) | bool) # if not reset k8s, need to check
+        - inventory_hostname in groups['k8s_master']
 
+    - name: Initialize k8s_node_map as an empty dictionary
+      set_fact:
+        k8s_node_map: {}
+
+    - name: Retrieve ansible node info and store in a map
+      set_fact:
+        k8s_node_map: "{{ k8s_node_map | combine({ hostvars[item].ansible_host: { 'ip': hostvars[item].ansible_ssh_host | default(hostvars[item].ansible_host), 'mac': hostvars[item].ansible_mac } }) }}"
+      loop: "{{ groups['k8s_all'] }}"
+      delegate_to: localhost
+      run_once: true
   roles:
     - name: reset_cluster
       when: k8s_reset | bool
-
+    - name: install_dhcp_server
+      when: (network_mode | default('nat')) == 'bridge'
+      delegate_to: localhost
+      run_once: true
     - name: config_proxy
-
     - name: preinstall
-    
     - name: install_containerd
-
     - name: install_k8s
-    
     - name: init_cluster
-      when: 
-        - ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
+      when:
+        - ((k8s_reset | bool) or (not k8s_ready | default(false) | bool))
         - inventory_hostname in groups['k8s_master']
-
     - name: install_cni
-      when: 
-        - ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
+      when:
+        - ((k8s_reset | bool) or (not k8s_ready | default(false) | bool))
         - inventory_hostname in groups['k8s_master']
-
     - name: join_workers
-      when: ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
-
+      when: (not hostvars[groups['k8s_master'][0]].k8s_ready | bool)
     - name: postinstall

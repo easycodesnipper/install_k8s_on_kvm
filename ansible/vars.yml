@@ -1,5 +1,6 @@
 docker_version: "20.10.7"
 docker_mirror: "" # Aliyun or AzureChinaCloud supported
+
 k8s_version: "1.31.2"
 k8s_repo_uri: "https://pkgs.k8s.io" # https://mirrors.aliyun.com/kubernetes-new, an available mirror in China
 k8s_gcr: "registry.k8s.io" # registry.cn-hangzhou.aliyuncs.com/google_containers, an available mirror in China
@@ -9,5 +10,4 @@ k8s_cni: flannel
 k8s_reset: false
 k8s_metric_server_enabled: false
 k8s_storage_provisioner_enabled: false
-k8s_skip_precheck: false
-
+k8s_skip_ready_check: false

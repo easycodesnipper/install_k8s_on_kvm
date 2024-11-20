@@ -1,6 +1,6 @@
 ---
 - name: Check if containerd is installed
-  command: containerd --version
+  command: containerd --version > /dev/null 2>&1
   register: containerd_installed
   ignore_errors: yes
 
@@ -53,21 +53,11 @@
       - /var/cache/apt/archives/lock
       - /var/lib/dpkg/lock
       - /var/lib/dpkg/lock-frontend
-    when: apt_process.stdout == ''
+    when: apt_process.stdout != ''
 
   - name: Run apt-get update
     apt:
       update_cache: yes
-
-  - name: Install required dependencies
-    apt:
-      name:
-        - apt-transport-https
-        - ca-certificates
-        - curl
-        - gnupg
-        - lsb-release
-      state: present
 
   - name: Install containerd
     apt:
@@ -109,10 +99,13 @@
       dest: /etc/systemd/system/containerd.service.d/10-proxy.conf
       content: |
         [Service]
-        Environment="HTTP_PROXY={{ http_proxy | default('') }}"
-        Environment="HTTPS_PROXY={{ https_proxy | default('') }}"
+        Environment="HTTP_PROXY={{ http_proxy }}"
+        Environment="HTTPS_PROXY={{ https_proxy }}"
         Environment="NO_PROXY={{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
       mode: '0644'
+    when:
+      - http_proxy | default('') != ''
+      - https_proxy | default('') != ''
 
   - name: Restart containerd service
     systemd:

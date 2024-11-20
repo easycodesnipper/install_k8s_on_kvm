@@ -76,6 +76,12 @@ variable "domain" {
   default = "k8s.local"
 }
 
+variable "mac_prefix" {
+  description = "The mac address prefix"
+  type = string
+  default = "00:16:3e:4da9e"
+}
+
 variable "mtu" {
   description = "The network mtu"
   type = number

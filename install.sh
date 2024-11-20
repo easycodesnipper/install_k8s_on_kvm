@@ -102,10 +102,11 @@ function auto_gen_inventory() {
 
     # Initialize an empty array for storing Hostname=IP pairs
     declare -A node_map
-    for node in $(terraform output -json | jq -r '.k8s_cluster_nodes.value[] | "\(.hostname)=\(.ip)"'); do
+    for node in $(terraform output -json | jq -r '.k8s_cluster_nodes.value[] | "\(.hostname)=\(.ip)=\(.mac)"'); do
       hostname=$(echo "$node"|awk -F '=' '{print $1}')
       ip=$(echo "$node"|awk -F '=' '{print $2}')
-      node_map[$hostname]=$ip
+      mac=$(echo "$node"|awk -F '=' '{print $3}')
+      node_map[$hostname]="$ip=$mac"
     done
 
     # Create or overwrite the Ansible inventory
@@ -113,15 +114,17 @@ function auto_gen_inventory() {
 
     # Get the first IP and hostname for the master node
     master_hostname=$(echo "${!node_map[@]}" | awk '{print $1}')
-    master_ip="${node_map[$master_hostname]}"
-    echo "$master_ip ansible_host=$master_hostname ansible_ssh_host=$master_ip" >> "$inventory_file"
+    master_ip=$(echo "${node_map[$master_hostname]}" | awk -F '=' '{print $1}')
+    master_mac=$(echo "${node_map[$master_hostname]}" | awk -F '=' '{print $2}')
+    echo "$master_ip ansible_host=$master_hostname ansible_ssh_host=$master_ip ansible_mac=$master_mac" >> "$inventory_file"
 
     # Add all worker IPs to the inventory (all except the master)
     echo -e "\n[k8s_workers]" >> "$inventory_file"
     for hostname in "${!node_map[@]}"; do
         if [[ "$hostname" != "$master_hostname" ]]; then
-            ip="${node_map[$hostname]}"
-            echo "$ip ansible_host=$hostname ansible_ssh_host=$ip" >> "$inventory_file"
+            ip=$(echo "${node_map[$hostname]}" | awk -F '=' '{print $1}')
+            mac=$(echo "${node_map[$hostname]}" | awk -F '=' '{print $2}')
+            echo "$ip ansible_host=$hostname ansible_ssh_host=$ip" ansible_mac=$mac>> "$inventory_file"
         fi
     done
 
@@ -143,6 +146,7 @@ function playbook_install_k8s() {
     -u "$user" \
     playbook.yml \
     -vv \
+    -e network_mode=$network_mode \
     "${ansible_extra_vars[@]}"
 }
 

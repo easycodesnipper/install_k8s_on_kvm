@@ -1,0 +1,10 @@
+---
+# Default variables for the DHCP server role
+
+dhcp_domain_name: "k8s.local"  # Change this to your desired domain
+dhcp_dns_servers:
+  - 8.8.8.8
+  - 8.8.4.4  # Google DNS servers
+dhcp_default_lease_time: 600
+dhcp_max_lease_time: 7200
+dhcp_interface: "br0"

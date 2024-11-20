@@ -1,6 +1,17 @@
 #cloud-config
-
 hostname: "${hostname}"
+fqdn: "${hostname}.${domain}"
+domain: "${domain}"
+
+write_files:
+  - path: /etc/hostname
+    content: |
+      ${hostname}
+
+  - path: /etc/hosts
+    content: |
+      127.0.0.1   localhost
+      127.0.1.1   ${hostname}.${domain} ${hostname}
 
 users:
   - name: "${user}"
@@ -19,6 +30,11 @@ growpart:
 package_update: true
 packages:
   - qemu-guest-agent # If using bridge network, this package is required
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
 
 runcmd:
   - sleep 10  # Delay to ensure system is fully initialized

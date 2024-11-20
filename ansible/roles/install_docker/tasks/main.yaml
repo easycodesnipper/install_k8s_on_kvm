@@ -1,7 +1,7 @@
 ---
 
 - name: Check if Docker is already installed
-  command: docker info
+  command: docker info > /dev/null 2>&1
   register: docker_installed
   ignore_errors: yes
   changed_when: false
@@ -28,10 +28,24 @@
     register: result
     until: result.rc == 0
 
+  - name: Create or update docker service proxy configuration file
+    copy:
+      dest: /etc/systemd/system/docker.service.d/10-proxy.conf
+      content: |
+        [Service]
+        Environment="HTTP_PROXY={{ http_proxy }}"
+        Environment="HTTPS_PROXY={{ https_proxy }}"
+        Environment="NO_PROXY={{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
+      mode: '0644'
+    when:
+      - http_proxy | default('') != ''
+      - https_proxy | default('') != ''
+
   - name: Start and enable Docker
     systemd:
       name: docker
       state: started
+      daemon_reload: true
       enabled: yes
 
   - name: Add user to Docker group

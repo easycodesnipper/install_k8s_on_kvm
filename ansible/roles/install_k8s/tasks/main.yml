@@ -1,16 +1,16 @@
 ---
 - name: Check if kubeadm is installed
-  command: kubeadm version
+  command: kubeadm version > /dev/null 2>&1
   register: kubeadm_installed
   ignore_errors: yes
 
 - name: Check if kubelet is installed
-  command: kubelet --version
+  command: kubelet --version > /dev/null 2>&1
   register: kubelet_installed
   ignore_errors: yes
 
 - name: Check if kubectl is installed
-  command: kubectl version --client
+  command: kubectl version --client > /dev/null 2>&1
   register: kubectl_installed
   ignore_errors: yes
 
@@ -62,13 +62,13 @@
       - /var/cache/apt/archives/lock
       - /var/lib/dpkg/lock
       - /var/lib/dpkg/lock-frontend
-    when: apt_process.stdout == ''
+    when: apt_process.stdout != ''
 
   - name: Run apt-get update
     apt:
       update_cache: yes
 
-  - name: Install Kubernetes components
+  - name: Install Kubernetes components(kubeadm,kubelet,kubectl)
     apt:
       name:
         - kubelet={{  k8s_version  }}*

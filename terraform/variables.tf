@@ -95,3 +95,9 @@ variable "network_subnet" {
   type        = list(string)
   default     = ["10.17.3.0/24"]
 }
+
+variable "autostart" {
+  description = "If auto start vm and network"
+  type = bool
+  default = true
+}

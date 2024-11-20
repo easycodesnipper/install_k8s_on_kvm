@@ -19,5 +19,7 @@ resource "libvirt_network" "k8s_net" {
   dhcp {
     enabled = true
   }
+
+  autostart = var.autostart
 }
   

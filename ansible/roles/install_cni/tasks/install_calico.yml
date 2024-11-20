@@ -1,5 +1,4 @@
 - name: Install the Tigera Calico operator
-  become: false
   command: >
     kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v{{ k8s_calico_version }}/manifests/tigera-operator.yaml --validate=false
   register: install_opt
@@ -24,7 +23,6 @@
     replace: 'cidr: {{ k8s_cidr }}'
 
 - name: Install Calico custom resource
-  become: false
   command: >
     kubectl create -f /tmp/custom-resources.yaml
   register: install_cust

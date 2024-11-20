@@ -4,6 +4,8 @@ resource "libvirt_domain" "k8s_node" {
   memory = var.memory_size * 1024
   vcpu   = var.vcpu_count
 
+  autostart = var.autostart
+
   cpu {
     mode = var.cpu_mode
   }
@@ -17,7 +19,7 @@ resource "libvirt_domain" "k8s_node" {
   }
 
   # if bridge network enabled, qemu_agent need to be enabled 
-  qemu_agent = libvirt_network.k8s_net.mode == "bridge" ? true : false
+  qemu_agent = libvirt_network.k8s_net.mode == "bridge"
 
   network_interface {
     network_id = libvirt_network.k8s_net.id 

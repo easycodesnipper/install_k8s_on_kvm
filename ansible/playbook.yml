@@ -1,58 +1,74 @@
 ---
-- hosts: k8s_all
+- name: Run tasks locally
+  hosts: localhost
+  connection: localhost  # Ensures tasks run locally without SSH
+  tasks:
+    - name: Retrieve ansible_host values and store in array
+      set_fact:
+        ansible_hosts_array: "{{ ansible_hosts_array | default([]) + [ hostvars[item].ansible_host ] }}"
+      loop: "{{ groups['k8s_all'] }}"
+
+- name: Run tasks remotely
+  hosts: k8s_all
   become: true
   any_errors_fatal: True
   vars_files:
     - vars.yml
+  vars:
+    k8s_node_hosts: "{{ hostvars['localhost'].ansible_hosts_array }}"
 
   pre_tasks:
-    - name: Check if Kubernetes cluster is ready
-      command: kubectl get pods -A
-      register: k8s_ready
-      ignore_errors: yes
-      when: (not k8s_reset | bool) and inventory_hostname in groups['k8s_master']
+    # - name: Loop through and debug each item in myvar
+    #   debug:
+    #     var: "{{ k8s_node_hosts }}"
 
-    - name: Set fact if Kubernetes cluster is ready
-      set_fact:
-        k8s_cluster_ready: "{{ k8s_ready.rc == 0 }}"
-      when: (not k8s_reset | bool) and inventory_hostname in groups['k8s_master']
+    # - name: Fail the playbook if Kubernetes cluster is ready
+    #   fail:
+    #     msg: "Debugging..."
 
-    - name: Fail the playbook globally if Kubernetes cluster is already ready
-      fail:
-        msg: "Kubernetes cluster is already ready, skipping installation, ./install.sh -e k8s_reset=true can be used to reset existing Kubernetes cluster"
-      when: k8s_cluster_ready | default(false)
+    - block:
+      - block:
+        - name: Check if Kubernetes cluster already ready
+          command: kubectl get pods -A
+          register: check_k8s_ready
+          ignore_errors: yes
+          when: inventory_hostname in groups['k8s_master']
 
-    - name: Proxy settings in /etc/environment
-      blockinfile:
-        path: /etc/environment
-        marker: "# {mark} ANSIBLE MANAGED BLOCK - Proxy Settings"
-        block: |
-          http_proxy="{{ http_proxy | default('') }}"
-          https_proxy="{{ https_proxy | default('') }}"
-          no_proxy="{{ no_proxy | default('localhost,127.0.0.1,::1') }},{{ groups['k8s_all'] | map('extract', hostvars, ['inventory_hostname']) | join(',') }},{{ k8s_cidr }},{{ k8s_service_cidr }}"
-      when:
-        - (http_proxy | default('')) != ''
-        - (https_proxy | default('')) != ''
+        - name: Set fact if Kubernetes cluster is ready
+          set_fact:
+            k8s_ready: "{{ check_k8s_ready.rc == 0 }}"
+          when: inventory_hostname in groups['k8s_master']
+
+        - name: Fail the playbook if Kubernetes cluster is ready
+          fail:
+            msg: "Kubernetes cluster is already ready, skipping installation, ./install.sh -e k8s_reset=true can be used to reset existing Kubernetes cluster"
+          when: inventory_hostname in groups['k8s_master'] and (k8s_ready | bool)
+        when: (not k8s_skip_precheck | bool)
+      when: (not k8s_reset | bool)
 
   roles:
-    - name: reset
+    - name: reset_cluster
       when: k8s_reset | bool
 
+    - name: config_proxy
+
     - name: preinstall
-      when: not k8s_reset | bool
     
     - name: install_containerd
-      when: not k8s_reset | bool
 
     - name: install_k8s
-      when: not k8s_reset | bool
     
-    - name: master_init
-      when: inventory_hostname in groups['k8s_master']
+    - name: init_cluster
+      when: 
+        - ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
+        - inventory_hostname in groups['k8s_master']
 
     - name: install_cni
-      when: inventory_hostname in groups['k8s_master']
+      when: 
+        - ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
+        - inventory_hostname in groups['k8s_master']
 
-    - name: worker_join
+    - name: join_workers
+      when: ((k8s_reset | bool) or (not k8s_ready | default(true) | bool))
 
     - name: postinstall

@@ -1,0 +1,4 @@
+local_path_provisioner_version: "v0.0.30"
+local_path_provisioner_namespace: "local-path-storage"
+local_path_provisioner_storage_class_name: "local-path"
+local_path_provisioner_volume_path: "/mnt/disks/k8s-local-storage"

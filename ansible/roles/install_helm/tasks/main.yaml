@@ -1,0 +1,33 @@
+
+- name: Check if helm is installed
+  command: helm version
+  register: helm_installed
+  ignore_errors: yes
+
+- block:
+  - name: Download Helm binary tarball with retries
+    get_url:
+      url: "https://get.helm.sh/helm-{{ helm_version }}-linux-amd64.tar.gz"
+      dest: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+      mode: '0644'
+    retries: 5          # Retry 5 times
+    delay: 10           # Wait 10 seconds between retries
+    until: result is success  # Retry until successful
+    register: result    # Register the result of the task
+
+  - name: Extract Helm tarball
+    unarchive:
+      src: "/tmp/helm-{{ helm_version }}-linux-amd64.tar.gz"
+      dest: "/tmp/"
+      remote_src: yes
+
+  - name: Move helm binary to /usr/local/bin
+    command:
+      cmd: mv /tmp/linux-amd64/helm /usr/local/bin/helm
+      creates: /usr/local/bin/helm
+
+  - name: Ensure helm binary is executable
+    file:
+      path: /usr/local/bin/helm
+      mode: '0755'
+  when: helm_installed.rc != 0

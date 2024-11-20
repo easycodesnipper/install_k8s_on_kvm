@@ -13,7 +13,7 @@ vcpu_count=${vcpu_count:-2}
 memory_size=${memory_size:-2} # in GB
 total_nodes=${total_nodes:-3} # By default, the first one will be taken as master
 network_mode=${network_mode:-"nat"}
-provision_infra=${provision_infra:-true}
+provision_reset=${provision_reset:-false}
 
 ### Precheck the source image (download if it's a URL and update the source_img_location)
 precheck_source_image() {
@@ -29,8 +29,10 @@ precheck_source_image() {
     
     # If file doesn't exist locally, download it
     if [[ ! -f "$local_file" ]]; then
-      echo "File not found locally. Downloading from $source_img_location..."
-      curl -L -o "$local_file" "$source_img_location"
+      echo "OS image not found locally. Downloading from $source_img_location..."
+      until curl -L -o "$local_file" "$source_img_location"; do
+        sleep 5
+      done
     else
       echo "File already exists locally at $local_file"
     fi
@@ -46,7 +48,33 @@ precheck_source_image() {
 }
 
 ### Terraform to provision infrastruce
-function provision_infra(){
+function provision_infra() {
+  reuse_infra=false
+  if [ "$provision_reset" = false ] && [ -f "$work_dir/terraform/terraform.tfstate" ]; then
+    read -r -p "Terraform provisioned existing infrastructure found, reserve to use it? [y/N] " response
+    response="${response:-y}" # if the user presses Enter (empty input)
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            echo "Reserving to use existing infrastructure..."
+            reuse_infra=true
+            ;;
+        [nN][oO]|[nN])
+            ;;
+        *)
+            ;;
+    esac
+  fi
+
+  if [ "$provision_reset" = true ]  || [ "$reuse_infra" = false ]; then
+    echo "Cleanup existing infrastructure and re-create..."
+    cleanup_infra
+    echo "Provisioning cluster infrastructure..."
+    precheck_source_image
+    provision_infra_internal "$@"
+  fi
+}
+
+function provision_infra_internal(){
     cd "$work_dir/terraform"
     if [ ! -d ".terraform" ]; then
         echo "Running terraform init..."
@@ -70,26 +98,34 @@ function provision_infra(){
 
 ### Generate Ansible inventory.ini
 function auto_gen_inventory() {
+    cd "$work_dir/terraform"
 
-    output=$(terraform output -json)
-
-    # Extract the IP addresses using jq
-    ips=($(echo "$output" | jq -r '.k8s_cluster_ips.value[]'))
-
-    # Create or overwrite the Ansible inventory
-    cat <<EOL > "$inventory_file"
-[k8s_master]
-${ips[0]}
-
-[k8s_workers]
-EOL
-
-    # Add all worker IPs to the inventory
-    for ip in "${ips[@]:1}"; do
-        echo "$ip" >> "$inventory_file"
+    # Initialize an empty array for storing Hostname=IP pairs
+    declare -A node_map
+    for node in $(terraform output -json | jq -r '.k8s_cluster_nodes.value[] | "\(.hostname)=\(.ip)"'); do
+      hostname=$(echo "$node"|awk -F '=' '{print $1}')
+      ip=$(echo "$node"|awk -F '=' '{print $2}')
+      node_map[$hostname]=$ip
     done
 
-    # Append the children group
+    # Create or overwrite the Ansible inventory
+    echo "[k8s_master]" > "$inventory_file"
+
+    # Get the first IP and hostname for the master node
+    master_hostname=$(echo "${!node_map[@]}" | awk '{print $1}')
+    master_ip="${node_map[$master_hostname]}"
+    echo "$master_ip ansible_host=$master_hostname ansible_ssh_host=$master_ip" >> "$inventory_file"
+
+    # Add all worker IPs to the inventory (all except the master)
+    echo -e "\n[k8s_workers]" >> "$inventory_file"
+    for hostname in "${!node_map[@]}"; do
+        if [[ "$hostname" != "$master_hostname" ]]; then
+            ip="${node_map[$hostname]}"
+            echo "$ip ansible_host=$hostname ansible_ssh_host=$ip" >> "$inventory_file"
+        fi
+    done
+
+    # Append the k8s_all children group
     cat <<EOL >> "$inventory_file"
 
 [k8s_all:children]
@@ -104,7 +140,7 @@ function playbook_install_k8s() {
     cd "$work_dir/ansible"
     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
     -i inventory.ini \
-    -u $user \
+    -u "$user" \
     playbook.yml \
     -vv \
     "${ansible_extra_vars[@]}"
@@ -112,34 +148,27 @@ function playbook_install_k8s() {
 
 ### Cleanup existing provisioned infrastructure
 function cleanup_infra() {
-    cd "$work_dir/terraform" || { echo "Terraform directory not found!"; exit 1; }
-    if [ -f "terraform.tfstate" ]; then
-      echo "Terraform state file found. Proceeding with cleanup..."
-      terraform destroy -auto-approve
-      echo "Terraform resources destroyed and state cleaned up."
-    else
-      echo "No Terraform state file found. Nothing to clean up."
-    fi
+    cd "$work_dir/terraform"
+    echo "Cleanup existing provisioned infrastructure..."
+    terraform destroy -auto-approve
+    echo "Terraform resources destroyed and state cleaned up."
+    rm -rf "$work_dir/terraform/terraform.tfstate*"
 }
 
 function main() {
-    if [ "$provision_infra" = true ]; then
+    echo "##########################################################"
+    echo "### Stage 1 -- Terraform provisioning infrastructure...###"
+    echo "##########################################################"
+    provision_infra "$@"
 
-      echo "Cleanup existing provisioned infrastructure..."
-      cleanup_infra
+    echo "###############################################################################"
+    echo "### Stage 2 -- Parse terraform output and Generate ansible inventory file...###"
+    echo "###############################################################################"
+    auto_gen_inventory "$@"
 
-      echo "Provisioning cluster infrastructure..."
-      precheck_source_image
-      provision_infra "$@"
-      auto_gen_inventory "$@"
-    fi
-
-    echo "Dump cluster infrastructure..."
-    echo "------------------------------"
-    cat "$inventory_file"
-    echo "------------------------------"
-
-    echo "Install kubernetes..."
+    echo "###############################################################"
+    echo "### Stage 3 -- Run ansible playbook to install kubernetes...###"
+    echo "###############################################################"
     playbook_install_k8s "$@"
 }
 

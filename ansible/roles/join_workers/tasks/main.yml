@@ -11,3 +11,16 @@
 - name: Join worker to the master
   command: "{{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}"
   when: inventory_hostname in groups['k8s_workers']
+
+- name: Restart containerd service
+  systemd:
+    name: containerd
+    state: restarted
+
+- name: Wait for all pods to be ready
+  command: kubectl wait --for=condition=ready pod --all --all-namespaces
+  register: pod_status
+  retries: 30
+  delay: 10
+  until: pod_status.rc == 0
+  when: inventory_hostname in groups['k8s_master']

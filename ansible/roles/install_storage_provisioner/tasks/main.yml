@@ -1,0 +1,23 @@
+- name: Ensure the local-path-provisioner storage directory exists
+  file:
+    path: "{{ local_path_provisioner_volume_path }}"
+    state: directory
+    mode: '0777'
+    owner: root
+    group: root
+
+- block:
+  - name: Install local-provisioner
+    shell: |
+      kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/{{ local_path_provisioner_version }}/deploy/local-path-storage.yaml
+
+  - name: Generate the local-path-provisioner ConfigMap with custom volume path
+    template:
+      src: provisioner-configmap.yaml.j2
+      dest: /tmp/provisioner-configmap.yaml
+    vars:
+      nodes: "{{ k8s_node_hosts }}"
+
+  - name: Apply the ConfigMap for local-path-provisioner
+    shell: kubectl apply -f /tmp/provisioner-configmap.yaml
+  when: inventory_hostname in groups['k8s_master']

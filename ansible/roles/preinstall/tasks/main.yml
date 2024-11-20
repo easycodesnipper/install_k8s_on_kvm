@@ -60,7 +60,7 @@
   register: config_sysctl
   when: not k8s_sysctl_conf.stat.exists
 
-- name: Reboot machine and wait to be available
+- name: Reboot the machine if swap, kernel module, or sysctl changed
   block:
   - name: Reboot the machine
     reboot:

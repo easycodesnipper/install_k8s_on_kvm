@@ -9,7 +9,8 @@
   pre_tasks:
     - block:
         - name: Check if Kubernetes cluster is ready
-          command: kubectl get pods -A
+          command: >
+            kubectl get pods -A
           register: check_k8s_ready
           ignore_errors: yes
         - name: Set fact if Kubernetes cluster is ready
@@ -41,9 +42,6 @@
   roles:
     - name: reset_cluster
       when: k8s_reset | bool
-    - name: install_dhcp_server
-      when: (network_mode | default('nat')) == 'bridge'
-      delegate_to: localhost
       run_once: true
     - name: config_proxy
     - name: preinstall

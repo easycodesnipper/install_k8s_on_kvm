@@ -30,12 +30,6 @@ growpart:
 package_update: true
 packages:
   - qemu-guest-agent # If using bridge network, this package is required
-  - apt-transport-https
-  - ca-certificates
-  - curl
-  - gnupg
-  - lsb-release
 
 runcmd:
-  - sleep 10  # Delay to ensure system is fully initialized
-  - systemctl enable --now qemu-guest-agent # If using bridge network, this service should be running
+  - systemctl enable --now qemu-guest-agent # If using bridge network, this service is required

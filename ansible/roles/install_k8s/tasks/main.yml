@@ -1,16 +1,16 @@
 ---
 - name: Check if kubeadm is installed
-  command: kubeadm version > /dev/null 2>&1
+  shell: kubeadm version > /dev/null 2>&1
   register: kubeadm_installed
   ignore_errors: yes
 
 - name: Check if kubelet is installed
-  command: kubelet --version > /dev/null 2>&1
+  shell: kubelet --version > /dev/null 2>&1
   register: kubelet_installed
   ignore_errors: yes
 
 - name: Check if kubectl is installed
-  command: kubectl version --client > /dev/null 2>&1
+  shell: kubectl version --client > /dev/null 2>&1
   register: kubectl_installed
   ignore_errors: yes
 
@@ -41,32 +41,8 @@
       line: "deb [arch=amd64 signed-by=/usr/share/keyrings/k8s.gpg] {{ k8s_repo_uri }}/core:/stable:/v{{ k8s_version | regex_replace('\\.\\d+$', '') }}/deb/ /"
       create: yes
 
-  - name: Check if any apt process is running
-    shell: ps aux | grep '[a]pt' || true
-    register: apt_process
-    ignore_errors: true
-
-  - name: Wait for apt lock to be released if apt process is running
-    wait_for:
-      path: /var/lib/apt/lists/lock
-      state: absent
-      timeout: 300
-    when: apt_process.stdout != ''
-
-  - name: Remove stale apt lock files
-    file:
-      path: "{{ item }}"
-      state: absent
-    with_items:
-      - /var/lib/apt/lists/lock
-      - /var/cache/apt/archives/lock
-      - /var/lib/dpkg/lock
-      - /var/lib/dpkg/lock-frontend
-    when: apt_process.stdout != ''
-
-  - name: Run apt-get update
-    apt:
-      update_cache: yes
+  - name: Ensure apt update successfully
+    include_tasks: "../../common/tasks/ensure_apt_update.yml"
 
   - name: Install Kubernetes components(kubeadm,kubelet,kubectl)
     apt:
@@ -77,7 +53,8 @@
       state: present
 
   - name: Mark Kubernetes packages on hold
-    command: apt-mark hold {{ item }}
+    command: >
+      "apt-mark hold {{ item }}"
     loop:
       - kubelet
       - kubeadm

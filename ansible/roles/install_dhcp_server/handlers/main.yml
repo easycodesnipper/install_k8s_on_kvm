@@ -1,4 +1,3 @@
----
 - name: Restart ISC DHCP Server
   service:
     name: isc-dhcp-server

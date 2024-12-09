@@ -1,10 +1,12 @@
 ---
 - name: Reset Kubernetes cluster
-  command: kubeadm reset -f
+  command: >
+    kubeadm reset -f
   ignore_errors: yes
 
 - name: Delete cni0 bridge
-  command: ip link delete cni0
+  command: >
+    ip link delete cni0
   ignore_errors: yes
 
 - name: Remove /etc/cni/net.d directory

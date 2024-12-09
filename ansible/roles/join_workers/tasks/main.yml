@@ -1,6 +1,7 @@
 ---
 - name: Get kubeadm join command
-  command: kubeadm token create --print-join-command
+  command: >
+    kubeadm token create --print-join-command
   register: join_command
   when: inventory_hostname in groups['k8s_master']
 
@@ -9,7 +10,8 @@
   when: inventory_hostname in groups['k8s_master']
 
 - name: Join worker to the master
-  command: "{{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}"
+  command: >
+    "{{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}"
   when: inventory_hostname in groups['k8s_workers']
 
 - name: Restart containerd service
@@ -18,7 +20,8 @@
     state: restarted
 
 - name: Wait for all pods to be ready
-  command: kubectl wait --for=condition=ready pod --all --all-namespaces
+  command: >
+    kubectl wait --for=condition=ready pod --all --all-namespaces
   register: pod_status
   retries: 30
   delay: 10

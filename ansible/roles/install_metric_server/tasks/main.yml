@@ -16,7 +16,8 @@
     line: '        - --kubelet-insecure-tls'
 
 - name: Install Metric Server
-  command: kubectl apply -f /tmp/metric-server.yml
+  command: >
+    kubectl apply -f /tmp/metric-server.yml
 
 - name: Remove temporary YAML
   file:

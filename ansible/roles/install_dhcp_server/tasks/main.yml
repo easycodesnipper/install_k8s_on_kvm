@@ -1,63 +1,95 @@
----
 - name: Check if ISC DHCP Server is installed
   shell: dpkg -l | grep -qw isc-dhcp-server
   register: dhcp_installed
   ignore_errors: true
   changed_when: false
-
 # Install ISC DHCP Server only if not installed
 - name: Install ISC DHCP Server package
   apt:
     name: isc-dhcp-server
     state: present
   when: dhcp_installed.rc != 0
-
 # Check if dhcpd.conf matches the desired configuration
 - name: Check current dhcpd.conf
-  command: cat /etc/dhcp/dhcpd.conf
+  command: >
+    cat /etc/dhcp/dhcpd.conf
   register: current_dhcpd_conf
   changed_when: false
   ignore_errors: true
-
-#######################################################
 - name: Gather facts for the network interface
-  command: "ip -o -f inet addr show {{ dhcp_interface }}"
+  command: >
+    "ip -o -f inet addr show {{ dhcp_interface }}"
   register: interface_details
   changed_when: false
-
 - name: Extract ip_address_with_subnet and ip_address
   set_fact:
     ip_address_with_subnet: "{{ interface_details.stdout | regex_search('inet ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+\\/\\d+)', '\\1') | first }}"
     ip_address: "{{ interface_details.stdout | regex_search('inet ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first }}"
-    
 - name: Extract subnet_prefix and subnet_suffix
-  set_fact: 
+  set_fact:
     subnet_prefix: "{{ ip_address | regex_search('([0-9]+\\.[0-9]+\\.[0-9]+)\\.[0-9]+', '\\1') | first }}"
     subnet_suffix: "{{ ip_address_with_subnet.split('/')[1] }}"
-
 - name: Get netmask based on subnet suffix
   set_fact:
     netmask: >
       {% if subnet_suffix == '8' %}
+
+
+
         255.0.0.0
       {% elif subnet_suffix == '16' %}
+
+
+
         255.255.0.0
       {% elif subnet_suffix == '24' %}
+
+
+
         255.255.255.0
       {% elif subnet_suffix == '32' %}
+
+
+
         255.255.255.255
       {% endif %}
 
 - name: Set all dhcp items
-  set_fact: 
+  set_fact:
     dhcp_broadcast: "{{ interface_details.stdout | regex_search('brd ([0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+)', '\\1') | first }}"
     dhcp_subnet: "{{ subnet_prefix + '.' + '0' }}"
-    dhcp_router: "{{ subnet_prefix + '.' + '1' }}"
-    dhcp_netmask: "{{ netmask }}"
+    dhcp_router: "{{ ip_address }}" # using br0 address as router
+    dhcp_netmask: "{{ netmask | trim }}"
     dhcp_range_start: "{{ subnet_prefix + '.' + '10' }}"
     dhcp_range_end: "{{ subnet_prefix + '.' + '200' }}"
-######################################################
+    ipv4_config_line: "INTERFACESv4={{ dhcp_interface }}"
+    ipv6_config_line: "INTERFACESv6={{ dhcp_interface }}"
 
+# Check current ISC DHCP server interface configuration
+- name: Check current ISC DHCP server interfaces configuration
+  command: >
+    cat /etc/default/isc-dhcp-server
+  register: current_interfaces_config
+  changed_when: false
+  ignore_errors: true
+- debug:
+    msg: current_interfaces_config.stdout
+- name: Configure DHCP server for IPv4
+  lineinfile:
+    path: /etc/default/isc-dhcp-server
+    regexp: '^INTERFACESv4=.*'
+    line: 'INTERFACESv4="{{ dhcp_interface }}"'
+  notify:
+    - Restart ISC DHCP Server
+  when: ipv4_config_line not in current_interfaces_config.stdout
+- name: Configure DHCP server for IPv6
+  lineinfile:
+    path: /etc/default/isc-dhcp-server
+    regexp: '^INTERFACESv6=.*'
+    line: 'INTERFACESv6="{{ dhcp_interface }}"'
+  notify:
+    - Restart ISC DHCP Server
+  when: ipv6_config_line not in current_interfaces_config.stdout
 # Configure dhcpd.conf only if it differs
 - name: Configure dhcpd.conf
   template:
@@ -69,27 +101,3 @@
   notify:
     - Restart ISC DHCP Server
   when: current_dhcpd_conf.stdout != lookup('file', 'templates/dhcpd.conf.j2')
-
-# Check current ISC DHCP server interface configuration
-- name: Check current ISC DHCP server interfaces configuration
-  command: cat /etc/default/isc-dhcp-server
-  register: current_interfaces_config
-  changed_when: false
-  ignore_errors: true
-
-# Configure DHCP server interfaces only if needed
-- name: Configure DHCP server interfaces
-  lineinfile:
-    path: /etc/default/isc-dhcp-server
-    regexp: '^INTERFACESv4=.*'
-    line: 'INTERFACESv4="{{ dhcp_interface }}"'
-  notify:
-    - Restart ISC DHCP Server
-  when: current_interfaces_config.stdout.find('INTERFACESv4="{{ dhcp_interface }}"') == -1
-
-# Enable and start ISC DHCP Server only if not already running
-- name: Enable and start ISC DHCP Server
-  service:
-    name: isc-dhcp-server
-    state: started
-    enabled: true

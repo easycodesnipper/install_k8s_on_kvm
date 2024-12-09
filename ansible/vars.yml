@@ -11,3 +11,4 @@ k8s_reset: false
 k8s_metric_server_enabled: false
 k8s_storage_provisioner_enabled: false
 k8s_skip_ready_check: false
+k8s_ipvs_enabled: false

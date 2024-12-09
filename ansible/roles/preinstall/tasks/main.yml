@@ -31,9 +31,11 @@
     path: /etc/modules-load.d/k8s.conf
     line: "{{ item }}"
     state: present
-  loop:
-    - overlay
-    - br_netfilter
+  loop: >
+    {{ 
+      ['overlay', 'br_netfilter'] +
+      (['ip_vs', 'ip_vs_rr', 'ip_vs_wrr', 'ip_vs_sh'] if (k8s_ipvs_enabled | default(false)) else [])
+    }}
   register: config_kernel_module
   when: not k8s_modules_conf.stat.exists
 
@@ -60,7 +62,8 @@
     register: config_sysctl
 
   - name: Reload sysctl settings
-    command: sysctl --system
+    command: >
+      sysctl --system
     when: config_sysctl.changed
   when: not k8s_sysctl_conf.stat.exists
 

@@ -1,6 +1,7 @@
 ---
 - name: Pull Kubernetes images
-  command: kubeadm config images pull --image-repository {{ k8s_gcr }} --kubernetes-version v{{ k8s_version }}
+  command: >
+    kubeadm config images pull --image-repository {{ k8s_gcr }} --kubernetes-version v{{ k8s_version }}
   register: pull_images
   retries: 10
   delay: 5

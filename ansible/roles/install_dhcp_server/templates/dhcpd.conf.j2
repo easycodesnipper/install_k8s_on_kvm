@@ -16,11 +16,3 @@ subnet {{ dhcp_subnet }} netmask {{ dhcp_netmask }} {
     option routers {{ dhcp_router }};
     option broadcast-address {{ dhcp_broadcast }};
 }
-
-# Kubernetes Nodes Static Reservations
-{% for key, values in k8s_node_map.items() %}
-host {{ key }} {
-    hardware ethernet {{ values.mac }};
-    fixed-address {{ values.ip }};
-}
-{% endfor %}

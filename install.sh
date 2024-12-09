@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+### Current workspace
 work_dir=$(pwd)
 
 ### Variables definition
@@ -49,9 +50,12 @@ precheck_source_image() {
 
 ### Terraform to provision infrastruce
 function provision_infra() {
+  if [ "$network_mode" == "bridge" ]; then
+    playbook_install_dhcp_server
+  fi
   reuse_infra=false
-  if [ "$provision_reset" = false ] && [ -f "$work_dir/terraform/terraform.tfstate" ]; then
-    read -r -p "Terraform provisioned existing infrastructure found, reserve to use it? [y/N] " response
+  if [ -f "$work_dir/terraform/terraform.tfstate" ] && [ "$provision_reset" = false ]; then
+    read -r -p "!!! Terraform provisioned existing infrastructure found, Keep to use it? [y/N]" response
     response="${response:-y}" # if the user presses Enter (empty input)
     case "$response" in
         [yY][eE][sS]|[yY])
@@ -137,6 +141,32 @@ k8s_workers
 EOL
 }
 
+### Ansible playbook to install kvm
+function playbook_install_kvm() {
+    ansible_extra_vars=("$@")
+    cd "$work_dir/ansible"
+    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
+    -i localhost, \
+    --connection=local \
+    -u "$USER" \
+    playbook-kvm.yml \
+    -vv \
+    "${ansible_extra_vars[@]}"
+}
+
+### Ansible playbook to install kubernetes cluster
+function playbook_install_dhcp_server() {
+    ansible_extra_vars=("$@")
+    cd "$work_dir/ansible"
+    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
+    -i localhost, \
+    --connection=local \
+    -u "$USER" \
+    playbook-dhcp-server.yml \
+    -vv \
+    "${ansible_extra_vars[@]}"
+}
+
 ### Ansible playbook to install kubernetes cluster
 function playbook_install_k8s() {
     ansible_extra_vars=("$@")
@@ -146,7 +176,6 @@ function playbook_install_k8s() {
     -u "$user" \
     playbook.yml \
     -vv \
-    -e network_mode=$network_mode \
     "${ansible_extra_vars[@]}"
 }
 
@@ -156,22 +185,29 @@ function cleanup_infra() {
     echo "Cleanup existing provisioned infrastructure..."
     terraform destroy -auto-approve
     echo "Terraform resources destroyed and state cleaned up."
-    rm -rf "$work_dir/terraform/terraform.tfstate*"
+    rm -rf "$work_dir/terraform/terraform.tfstate" \
+           "$work_dir/terraform/terraform.tfstate.backup"
 }
 
 function main() {
+
     echo "##########################################################"
-    echo "### Stage 1 -- Terraform provisioning infrastructure...###"
+    echo "### Stage 1 -- Install KVM.............................###"
     echo "##########################################################"
+    playbook_install_kvm "$@"
+
+    echo "##############################################################"
+    echo "### Stage 2 -- Terraform provisioning KVM infrastructure...###"
+    echo "##############################################################"
     provision_infra "$@"
 
     echo "###############################################################################"
-    echo "### Stage 2 -- Parse terraform output and Generate ansible inventory file...###"
+    echo "### Stage 3 -- Parse terraform output and Generate ansible inventory file...###"
     echo "###############################################################################"
     auto_gen_inventory "$@"
 
     echo "###############################################################"
-    echo "### Stage 3 -- Run ansible playbook to install kubernetes...###"
+    echo "### Stage 4 -- Run ansible playbook to install kubernetes...###"
     echo "###############################################################"
     playbook_install_k8s "$@"
 }

@@ -1,0 +1,73 @@
+- name: Check if KVM already installed
+  shell: virsh --version > /dev/null 2>&1
+  register: kvm_installed
+  ignore_errors: yes
+
+- block:
+  - name: Check if virtualization is supported
+    command: >
+      egrep -c '(vmx|svm)' /proc/cpuinfo
+    register: virtualization_check
+    failed_when: virtualization_check.stdout == "0"
+    changed_when: false
+
+  - name: Fail if virtualization is not supported
+    fail:
+      msg: "Virtualization is not supported on this system."
+    when: virtualization_check.stdout == "0"
+
+  - name: Check if /etc/modprobe.d/kvm.conf exists
+    stat:
+      path: /etc/modprobe.d/kvm.conf
+    register: kvm_modules_conf
+
+  - block:
+    - name: Create kvm.conf kernel module file if not exist
+      file:
+        path: /etc/modprobe.d/kvm.conf
+        state: touch
+
+    - name: Enable nested virtualization if supported
+      blockinfile:
+        path: /etc/modprobe.d/kvm.conf
+        marker: "# {mark} ANSIBLE MANAGED BLOCK"
+        block: |
+          options kvm_intel nested=1
+          options kvm_amd nested=1
+
+    - name: Reload Kernel Modules
+      shell: modprobe kvm_intel || modprobe kvm_amd
+    when: not kvm_modules_conf.stat.exists
+
+  - name: Ensure apt update successfully
+    include_tasks: "../../common/tasks/ensure_apt_update.yml"
+    
+  - name: Ensure required packages are installed
+    apt:
+      name:
+        - qemu-kvm
+        - libvirt-daemon-system
+        - libvirt-clients
+        - bridge-utils
+        - virtinst
+      state: present
+
+  - name: Configure libvirt with security_driver=none
+    lineinfile:
+      path: /etc/libvirt/qemu.conf
+      regexp: '^security_driver\s*=\s*'
+      line: 'security_driver = "none"'
+      state: present
+    when: security_driver_disabled | default(true) | bool
+
+  - name: Add the current user to kvm and libvirt groups
+    user:
+      name: "{{ ansible_user }}"
+      groups: kvm,libvirt
+      append: true
+
+  - name: Restart libvirt
+    service:
+      name: libvirtd
+      state: restarted
+  when: kvm_installed.rc != 0

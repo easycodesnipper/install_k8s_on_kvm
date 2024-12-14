@@ -11,9 +11,8 @@ total_nodes=<N> ./install.sh # The first node is master, the remaining nodes are
 provision_infra=false ./install.sh -e k8s_reset=true
 ```
 
-### By default using NAT model, for bridge network mode, execute the following configurations. 
-## Prerequisite
-1. Create bridge network.
+### By default using NAT model
+### for bridge network mode, to create bridge network on the host is required
 ``` bash
 sudo vim /etc/netplan/00-installer-config.yaml
 ```
@@ -48,39 +47,6 @@ network:
 sudo netplan apply
 ```
 
-2. Setup DHCP server on the host machine -- optional(If the router with DHCP server) 
-
-```bash
-sudo apt update
-sudo apt install isc-dhcp-server
-
-# Configure isc-dhcp-server
-sudo vim /etc/dhcp/dhcpd.conf
-# Add below section
-...
-# An example to add DHCP configuration for subnet 192.168.4.0/24, replace with yours
-subnet 192.168.4.0 netmask 255.255.255.0 {
-  range 192.168.4.10 192.168.4.100;    # DHCP IP range for VMs
-  option domain-name-servers 8.8.8.8, 8.8.4.4;  # DNS servers for VMs
-  option routers 192.168.4.1;  # Default gateway
-  option broadcast-address 192.168.4.255;  # Broadcast address
-  default-lease-time 600;  # Default lease time in seconds
-  max-lease-time 7200;  # Maximum lease time in seconds
-}
-...
-
-# Set the INTERFACESv4 variable to your network interface name
-sudo vim /etc/default/isc-dhcp-server
-INTERFACESv4="br0" # replace with your bridge network name
-
-# Enable and start DHCP server
-sudo systemctl enable --now isc-dhcp-server
-sudo systemctl status isc-dhcp-server
-
-# Install with bridge network mode
-network_mode=bridge ./install.sh
-```
-
 ### Supported provision options
 - `user=${user:-ubuntu}`
 - `k8s_pool_path=${k8s_pool_path:-/mnt/data_lvm/k8s_pool}`
@@ -91,7 +57,8 @@ network_mode=bridge ./install.sh
 - `memory_size=${memory_size:-2}` # in GB
 - `total_nodes=${total_nodes:-3}` # By default, the first one is master
 - `network_mode=${network_mode:-"nat"}`
-- `provision_infra=${provision_infra:-true}`
+- `provision_reset=${provision_reset:-false}`
+- `skip_cleanup_confirm=${skip_cleanup_confirm:-false}`
 
 Usage:
 ```bash

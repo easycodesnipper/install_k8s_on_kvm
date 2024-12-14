@@ -42,19 +42,18 @@
   roles:
     - name: reset_cluster
       when: k8s_reset | bool
-      run_once: true
     - name: config_proxy
     - name: preinstall
     - name: install_containerd
     - name: install_k8s
     - name: init_cluster
       when:
-        - ((k8s_reset | bool) or (not k8s_ready | default(false) | bool))
+        - (k8s_reset | bool) or (not k8s_ready | default(false) | bool)
         - inventory_hostname in groups['k8s_master']
     - name: install_cni
       when:
-        - ((k8s_reset | bool) or (not k8s_ready | default(false) | bool))
+        - (k8s_reset | bool) or (not k8s_ready | default(false) | bool)
         - inventory_hostname in groups['k8s_master']
     - name: join_workers
-      when: (not hostvars[groups['k8s_master'][0]].k8s_ready | bool)
+      when: (not hostvars[groups['k8s_master'][0]].k8s_ready | default(false) | bool)
     - name: postinstall

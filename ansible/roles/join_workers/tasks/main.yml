@@ -11,7 +11,7 @@
 
 - name: Join worker to the master
   command: >
-    "{{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}"
+    {{ hostvars[groups['k8s_master'][0]].kubeadm_join_command }}
   when: inventory_hostname in groups['k8s_workers']
 
 - name: Restart containerd service

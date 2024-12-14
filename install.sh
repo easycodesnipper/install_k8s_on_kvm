@@ -15,6 +15,7 @@ memory_size=${memory_size:-2} # in GB
 total_nodes=${total_nodes:-3} # By default, the first one will be taken as master
 network_mode=${network_mode:-"nat"}
 provision_reset=${provision_reset:-false}
+skip_cleanup_confirm=${skip_cleanup_confirm:-false}
 
 ### Precheck the source image (download if it's a URL and update the source_img_location)
 precheck_source_image() {
@@ -50,26 +51,28 @@ precheck_source_image() {
 
 ### Terraform to provision infrastruce
 function provision_infra() {
-  if [ "$network_mode" == "bridge" ]; then
-    playbook_install_dhcp_server
-  fi
-  reuse_infra=false
-  if [ -f "$work_dir/terraform/terraform.tfstate" ] && [ "$provision_reset" = false ]; then
-    read -r -p "!!! Terraform provisioned existing infrastructure found, Keep to use it? [y/N]" response
-    response="${response:-y}" # if the user presses Enter (empty input)
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            echo "Reserving to use existing infrastructure..."
-            reuse_infra=true
-            ;;
-        [nN][oO]|[nN])
-            ;;
-        *)
-            ;;
-    esac
+  local cleanup=false
+  if [ "$provision_reset" = true ]; then
+    cleanup=true
+  elif [ -f "$work_dir/terraform/terraform.tfstate" ]; then
+    if [ "$skip_cleanup_confirm" = false ]; then
+      read -r -p "!!! Terraform provisioned existing infrastructure found, Keep to use it? [y/N]" response
+      response="${response:-y}" # if the user presses Enter (empty input)
+      case "$response" in
+          [yY][eE][sS]|[yY])
+              echo "Reserving to use existing infrastructure..."
+              cleanup=false
+              ;;
+          [nN][oO]|[nN])
+              cleanup=true
+              ;;
+          *)
+              ;;
+      esac
+    fi
   fi
 
-  if [ "$provision_reset" = true ]  || [ "$reuse_infra" = false ]; then
+  if [ "$cleanup" = true ]; then
     echo "Cleanup existing infrastructure and re-create..."
     cleanup_infra
     echo "Provisioning cluster infrastructure..."
@@ -150,19 +153,6 @@ function playbook_install_kvm() {
     --connection=local \
     -u "$USER" \
     playbook-kvm.yml \
-    -vv \
-    "${ansible_extra_vars[@]}"
-}
-
-### Ansible playbook to install kubernetes cluster
-function playbook_install_dhcp_server() {
-    ansible_extra_vars=("$@")
-    cd "$work_dir/ansible"
-    ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
-    -i localhost, \
-    --connection=local \
-    -u "$USER" \
-    playbook-dhcp-server.yml \
     -vv \
     "${ansible_extra_vars[@]}"
 }

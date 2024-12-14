@@ -1,8 +1,0 @@
-- name: Run playbook to install dhcp server
-  hosts: localhost
-  become: true
-  any_errors_fatal: True
-  vars_files:
-    - vars.yml
-  roles:
-    - name: install_dhcp_server

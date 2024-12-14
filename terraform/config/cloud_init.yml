@@ -3,6 +3,24 @@ hostname: "${hostname}"
 fqdn: "${hostname}.${domain}"
 domain: "${domain}"
 
+# Set up disk partitioning and formatting
+# Create the mount point /mnt/data
+disk_setup:
+  /dev/vdb:
+    table: gpt
+    layout: true
+    overwrite: true
+    partitions:
+      - size: 100%
+        name: "data"
+        type: "ext4"
+fs_setup:
+  - device: /dev/vdb1
+    filesystem: ext4
+    label: data
+mounts:
+  - ["/dev/vdb1", "/mnt/data", "ext4", "defaults", "0", "2"]
+
 write_files:
   - path: /etc/hostname
     content: |

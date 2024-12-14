@@ -54,7 +54,7 @@
 
   - name: Mark Kubernetes packages on hold
     command: >
-      "apt-mark hold {{ item }}"
+      apt-mark hold {{ item }}
     loop:
       - kubelet
       - kubeadm

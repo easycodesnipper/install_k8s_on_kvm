@@ -51,6 +51,10 @@
         - bridge-utils
         - virtinst
       state: present
+    register: apt_result
+    retries: 5
+    delay: 10
+    until: apt_result is succeeded
 
   - name: Configure libvirt with security_driver=none
     lineinfile:

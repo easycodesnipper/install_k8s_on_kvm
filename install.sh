@@ -144,7 +144,7 @@ k8s_workers
 EOL
 }
 
-### Ansible playbook to install kvm
+### Ansible playbook to install kvm on host
 function playbook_install_kvm() {
     ansible_extra_vars=("$@")
     cd "$work_dir/ansible"
@@ -152,19 +152,19 @@ function playbook_install_kvm() {
     -i localhost, \
     --connection=local \
     -u "$USER" \
-    playbook-kvm.yml \
+    kvm/install.yml \
     -vv \
     "${ansible_extra_vars[@]}"
 }
 
-### Ansible playbook to install kubernetes cluster
+### Ansible playbook to install kubernetes cluster on guests
 function playbook_install_k8s() {
     ansible_extra_vars=("$@")
     cd "$work_dir/ansible"
     ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook \
     -i inventory.ini \
     -u "$user" \
-    playbook.yml \
+    kubernetes/install.yml \
     -vv \
     "${ansible_extra_vars[@]}"
 }

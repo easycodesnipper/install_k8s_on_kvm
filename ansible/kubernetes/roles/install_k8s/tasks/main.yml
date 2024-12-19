@@ -51,6 +51,10 @@
         - kubeadm={{  k8s_version  }}*
         - kubectl={{  k8s_version  }}*
       state: present
+    register: apt_result
+    retries: 5
+    delay: 10
+    until: apt_result is succeeded
 
   - name: Mark Kubernetes packages on hold
     command: >

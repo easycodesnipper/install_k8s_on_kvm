@@ -2,7 +2,5 @@
   hosts: localhost
   become: true
   any_errors_fatal: True
-  vars_files:
-    - vars.yml
   roles:
     - name: install_kvm
